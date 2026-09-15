@@ -12,13 +12,13 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AttributeRow: typeof import('./src/components/AttributeRow.vue')['default']
-    AttributeRowAdd: typeof import('./src/components/AttributeRowAdd.vue')['default']
-    BaseRow: typeof import('./src/components/BaseRow.vue')['default']
-    BuiltInAttrs: typeof import('./src/components/BuiltInAttrs.vue')['default']
-    DbAttrs: typeof import('./src/components/DbAttrs.vue')['default']
-    DbRow: typeof import('./src/components/DbRow.vue')['default']
-    DebugInfo: typeof import('./src/components/DebugInfo.vue')['default']
+    AttributeRow: typeof import('./../components/AttributeRow.vue')['default']
+    AttributeRowAdd: typeof import('./../components/AttributeRowAdd.vue')['default']
+    BaseRow: typeof import('./../components/BaseRow.vue')['default']
+    BuiltInAttrs: typeof import('./../components/BuiltInAttrs.vue')['default']
+    DbAttrs: typeof import('./../components/DbAttrs.vue')['default']
+    DbRow: typeof import('./../components/DbRow.vue')['default']
+    DebugInfo: typeof import('./../components/DebugInfo.vue')['default']
     TAside: typeof import('tdesign-vue-next')['Aside']
     TCard: typeof import('tdesign-vue-next')['Card']
     TCheckbox: typeof import('tdesign-vue-next')['Checkbox']
@@ -42,13 +42,13 @@ declare module 'vue' {
 
 // For TSX support
 declare global {
-  const AttributeRow: typeof import('./src/components/AttributeRow.vue')['default']
-  const AttributeRowAdd: typeof import('./src/components/AttributeRowAdd.vue')['default']
-  const BaseRow: typeof import('./src/components/BaseRow.vue')['default']
-  const BuiltInAttrs: typeof import('./src/components/BuiltInAttrs.vue')['default']
-  const DbAttrs: typeof import('./src/components/DbAttrs.vue')['default']
-  const DbRow: typeof import('./src/components/DbRow.vue')['default']
-  const DebugInfo: typeof import('./src/components/DebugInfo.vue')['default']
+  const AttributeRow: typeof import('./../components/AttributeRow.vue')['default']
+  const AttributeRowAdd: typeof import('./../components/AttributeRowAdd.vue')['default']
+  const BaseRow: typeof import('./../components/BaseRow.vue')['default']
+  const BuiltInAttrs: typeof import('./../components/BuiltInAttrs.vue')['default']
+  const DbAttrs: typeof import('./../components/DbAttrs.vue')['default']
+  const DbRow: typeof import('./../components/DbRow.vue')['default']
+  const DebugInfo: typeof import('./../components/DebugInfo.vue')['default']
   const TAside: typeof import('tdesign-vue-next')['Aside']
   const TCard: typeof import('tdesign-vue-next')['Card']
   const TCheckbox: typeof import('tdesign-vue-next')['Checkbox']

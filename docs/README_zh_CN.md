@@ -70,7 +70,7 @@
 
 <summary>微信二维码（如果看不到图请搜索微信号 `TransMux`）</summary>
 
-![]([./asset/Wechat.jpg](https://assets.b3logfile.com/siyuan/1613565605390/assets/image-20231229141811-73f5v1k.png))
+![微信二维码](./images/Wechat.jpg)
 
 </details>
 

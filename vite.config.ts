@@ -2,8 +2,6 @@ import { resolve } from "path"
 import { defineConfig, loadEnv } from "vite"
 import minimist from "minimist"
 import { viteStaticCopy } from "vite-plugin-static-copy"
-import livereload from "rollup-plugin-livereload"
-import { svelte } from "@sveltejs/vite-plugin-svelte"
 import Vue from '@vitejs/plugin-vue'
 import zipPack from "vite-plugin-zip-pack";
 import fg from 'fast-glob';
@@ -18,9 +16,44 @@ const args = minimist(process.argv.slice(2))
 const isWatch = args.watch || args.w || false
 const devDistDir = "./dev"
 const distDir = isWatch ? devDistDir : "./dist"
+const siyuanEnv = loadEnv(isWatch ? "development" : "production", process.cwd(), "VITE_SIYUAN_")
+const siyuanOrigin = siyuanEnv.VITE_SIYUAN_ORIGIN || "http://127.0.0.1:6806"
+const siyuanToken = siyuanEnv.VITE_SIYUAN_TOKEN || ""
 
 console.log("isWatch=>", isWatch)
 console.log("distDir=>", distDir)
+
+function siyuanAutoReload() {
+    let timer: ReturnType<typeof setTimeout> | undefined
+
+    return {
+        name: "siyuan-auto-reload",
+        apply: "build" as const,
+        closeBundle() {
+            if (!isWatch) return
+
+            clearTimeout(timer)
+            timer = setTimeout(async () => {
+                try {
+                    const response = await fetch(new URL("/api/ui/reloadUI", siyuanOrigin), {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            ...(siyuanToken ? { "Authorization": `Token ${siyuanToken}` } : {}),
+                        },
+                        body: "{}",
+                    })
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status} ${response.statusText}`)
+                    }
+                    console.log("[siyuan-auto-reload] reload requested")
+                } catch (error) {
+                    console.warn("[siyuan-auto-reload] reload failed:", error)
+                }
+            }, 250)
+        },
+    }
+}
 
 export default defineConfig({
     resolve: {
@@ -30,15 +63,17 @@ export default defineConfig({
     },
 
     plugins: [
-        svelte(),
         Vue(),
         vueJsx(),
+        siyuanAutoReload(),
         AutoImport({
+            dts: "src/types/auto-imports.d.ts",
             resolvers: [TDesignResolver({
               library: 'vue-next'
             })],
           }),
           Components({
+            dts: "src/types/components.d.ts",
             resolvers: [TDesignResolver({
               library: 'vue-next'
             })],
@@ -46,15 +81,17 @@ export default defineConfig({
         viteStaticCopy({
             targets: [
                 {
-                    src: "./README*.md",
+                    src: "docs/README*.md",
                     dest: "./",
                 },
                 {
-                    src: "./icon.png",
+                    src: "assets/icon.png",
+                    rename: { stripBase: 1 },
                     dest: "./",
                 },
                 {
-                    src: "./preview.png",
+                    src: "assets/preview.png",
+                    rename: { stripBase: 1 },
                     dest: "./",
                 },
                 {
@@ -104,14 +141,15 @@ export default defineConfig({
             plugins: [
                 ...(
                     isWatch ? [
-                        livereload(devDistDir),
                         {
                             //监听静态资源文件
                             name: 'watch-external',
                             async buildStart() {
                                 const files = await fg([
                                     'src/i18n/*.json',
-                                    './README*.md',
+                                    'docs/README*.md',
+                                    'assets/icon.png',
+                                    'assets/preview.png',
                                     './plugin.json'
                                 ]);
                                 for (let file of files) {
