@@ -136,7 +136,7 @@ export const useConfigStore = defineStore(pluginKey + "configurations", () => {
       });
     });
 
-    return data;
+    return data as Ref<UnwrapRef<T>>;
   }
 
   // --- Setting Persist Storage ---

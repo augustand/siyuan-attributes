@@ -3,13 +3,14 @@
         <template v-for="(attribute, index) in attributeStore.builtInAttributes" :key="attribute.name">
             <AttributeRow :index="index" />
         </template>
-        <!-- <AttributeRowAdd /> -->
+        <AttributeRowAdd />
     </t-card>
 </template>
 
 
 <script setup lang="ts">
 import AttributeRow from '@/components/AttributeRow.vue';
+import AttributeRowAdd from '@/components/AttributeRowAdd.vue';
 import { useAttributesStore } from '@/store/attribute';
 
 // 通过一个文档id，渲染对应的内置属性属性面板

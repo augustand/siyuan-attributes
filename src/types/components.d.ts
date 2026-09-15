@@ -13,6 +13,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AttributeRow: typeof import('./../components/AttributeRow.vue')['default']
+    AttributeRowActions: typeof import('./../components/AttributeRowActions.vue')['default']
     AttributeRowAdd: typeof import('./../components/AttributeRowAdd.vue')['default']
     BaseRow: typeof import('./../components/BaseRow.vue')['default']
     BuiltInAttrs: typeof import('./../components/BuiltInAttrs.vue')['default']
@@ -20,6 +21,7 @@ declare module 'vue' {
     DbRow: typeof import('./../components/DbRow.vue')['default']
     DebugInfo: typeof import('./../components/DebugInfo.vue')['default']
     TAside: typeof import('tdesign-vue-next')['Aside']
+    TButton: typeof import('tdesign-vue-next')['Button']
     TCard: typeof import('tdesign-vue-next')['Card']
     TCheckbox: typeof import('tdesign-vue-next')['Checkbox']
     TContent: typeof import('tdesign-vue-next')['Content']
@@ -33,6 +35,7 @@ declare module 'vue' {
     TMenu: typeof import('tdesign-vue-next')['Menu']
     TMenuItem: typeof import('tdesign-vue-next')['MenuItem']
     TOption: typeof import('tdesign-vue-next')['Option']
+    TPopconfirm: typeof import('tdesign-vue-next')['Popconfirm']
     TSelect: typeof import('tdesign-vue-next')['Select']
     TTabPanel: typeof import('tdesign-vue-next')['TabPanel']
     TTabs: typeof import('tdesign-vue-next')['Tabs']
@@ -43,6 +46,7 @@ declare module 'vue' {
 // For TSX support
 declare global {
   const AttributeRow: typeof import('./../components/AttributeRow.vue')['default']
+  const AttributeRowActions: typeof import('./../components/AttributeRowActions.vue')['default']
   const AttributeRowAdd: typeof import('./../components/AttributeRowAdd.vue')['default']
   const BaseRow: typeof import('./../components/BaseRow.vue')['default']
   const BuiltInAttrs: typeof import('./../components/BuiltInAttrs.vue')['default']
@@ -50,6 +54,7 @@ declare global {
   const DbRow: typeof import('./../components/DbRow.vue')['default']
   const DebugInfo: typeof import('./../components/DebugInfo.vue')['default']
   const TAside: typeof import('tdesign-vue-next')['Aside']
+  const TButton: typeof import('tdesign-vue-next')['Button']
   const TCard: typeof import('tdesign-vue-next')['Card']
   const TCheckbox: typeof import('tdesign-vue-next')['Checkbox']
   const TContent: typeof import('tdesign-vue-next')['Content']
@@ -63,6 +68,7 @@ declare global {
   const TMenu: typeof import('tdesign-vue-next')['Menu']
   const TMenuItem: typeof import('tdesign-vue-next')['MenuItem']
   const TOption: typeof import('tdesign-vue-next')['Option']
+  const TPopconfirm: typeof import('tdesign-vue-next')['Popconfirm']
   const TSelect: typeof import('tdesign-vue-next')['Select']
   const TTabPanel: typeof import('tdesign-vue-next')['TabPanel']
   const TTabs: typeof import('tdesign-vue-next')['Tabs']

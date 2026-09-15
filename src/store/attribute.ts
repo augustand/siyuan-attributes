@@ -1,7 +1,9 @@
 import { defineStore } from "pinia";
 import { fetchPost } from "siyuan";
+import type { IWebSocketData } from "siyuan";
 import { inject, reactive, ref } from "vue";
 import { displayRule, useConfigStore } from "./rules";
+import { fetchBlockAttrs, writeBlockAttrs } from "@/services/blockAttrs";
 
 const pluginKey = "mux-siyuan-plugin-attributes-panel";
 
@@ -20,67 +22,66 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
   // UI --> Inner Store (UnReliable, based on components)
 
   // --- Attributes Data Storages ---
-  const documentId = inject("$docId");
+  const documentId = ref(inject<string>("$docId", ""));
   const builtInAttributes = ref([] as Array<innerAttribute>); // 内置数据库属性
-  const dataBaseAttributes = reactive({}); // 当前文档所有数据库属性
+  const dataBaseAttributes = reactive<Record<string, any>>({}); // 当前文档所有数据库属性
   const pageBlockAttributes = reactive({}); // 当前块属性
+  const isSaving = ref(false);
 
-  function fetchInnerAttributes() {
-    fetchPost(
-      "/api/attr/getBlockAttrs",
-      {
-        id: documentId,
-      },
-      ({ data }) => {
-        // --- 根据规则过滤, 排序属性 ---
-        for (const attributeName in data) {
-          const attributeValue = data[attributeName];
+  async function loadDocumentAttributes(): Promise<void> {
+    const attrs = await fetchBlockAttrs(documentId.value);
+    const next: Array<innerAttribute> = [];
 
-          const rule = matchRules(attributeName);
+    for (const [attributeName, attributeValue] of Object.entries(attrs)) {
+      const rule = matchRules(attributeName);
+      if (rule && !rule.display) continue;
 
-          if (rule) {
-            if (rule.display === true) {
-              builtInAttributes.value.push({
-                ...rule,
-                key: attributeName,
-                value: attributeValue,
-              });
-            }
-          } else {
-            builtInAttributes.value.push({
-              key: attributeName,
-              value: attributeValue,
-              name: attributeName,
-              displayAs: attributeName.replace("custom-", ""),
-              rule: attributeName,
-              renderMethod: "input",
-              matchMethod: "精确",
-              editable: true,
-              display: true,
-            });
-          }
-        }
-        // order
-        builtInAttributes.value.sort((a, b) => {
-          return a.order - b.order;
+      if (rule) {
+        next.push({
+          ...rule,
+          key: attributeName,
+          value: attributeValue,
         });
-
-        // attributes views check
-        if ("custom-avs" in data) {
-          fetchDBAttributes();
-        }
+      } else {
+        next.push({
+          key: attributeName,
+          value: attributeValue,
+          name: attributeName,
+          displayAs: attributeName.replace(/^custom-/, ""),
+          rule: attributeName,
+          renderMethod: "input",
+          matchMethod: "精确",
+          editable: true,
+          display: true,
+        });
       }
-    );
+    }
+
+    builtInAttributes.value = next.sort((left, right) => {
+      return (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER);
+    });
+
+    if ("custom-avs" in attrs) {
+      await loadDatabaseAttributes();
+    }
   }
 
-  function fetchDBAttributes() {
-    fetchPost(
+  async function loadDatabaseAttributes(): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      fetchPost(
       "/api/av/getAttributeViewKeys",
       {
-        id: documentId,
+        id: documentId.value,
       },
-      ({ data }) => {
+      (response: IWebSocketData) => {
+        if (response.code !== 0) {
+          reject(new Error(response.msg || "Failed to load database attributes"));
+          return;
+        }
+
+        const data = response.data;
         if (!data || data.length === 0) {
+          resolve();
           return;
         }
 
@@ -134,10 +135,64 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
 
           dataBaseAttributes[av.avID] = database;
         }
-
-        console.log("Converted Attribute Views", dataBaseAttributes);
+        resolve();
+      },
+      undefined,
+      () => {
+        reject(new Error("Failed to load database attributes"));
       }
-    );
+      );
+    });
+  }
+
+  function assertCustomKey(key: string): void {
+    if (!/^custom-[a-z][a-z0-9-]*$/.test(key)) {
+      throw new Error("Attribute key must match custom-[lowercase-name]");
+    }
+  }
+
+  async function setAttribute(
+    key: string,
+    value: string,
+    options: { requireCustom?: boolean } = {},
+  ): Promise<void> {
+    if (options.requireCustom) {
+      assertCustomKey(key);
+    }
+
+    isSaving.value = true;
+    try {
+      await writeBlockAttrs(documentId.value, { [key]: value });
+      await loadDocumentAttributes();
+    } finally {
+      isSaving.value = false;
+    }
+  }
+
+  const protectedDeleteKeys = new Set([
+    "id",
+    "updated",
+    "type",
+    "subtype",
+    "fold",
+    "scroll",
+    "title",
+    "icon",
+    "custom-avs",
+  ]);
+
+  async function deleteCustomAttribute(key: string): Promise<void> {
+    if (protectedDeleteKeys.has(key) || !key.startsWith("custom-")) {
+      throw new Error(`Attribute key is protected and cannot be deleted: ${key}`);
+    }
+
+    isSaving.value = true;
+    try {
+      await writeBlockAttrs(documentId.value, { [key]: "" });
+      await loadDocumentAttributes();
+    } finally {
+      isSaving.value = false;
+    }
   }
 
   return {
@@ -145,8 +200,11 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
     builtInAttributes,
     dataBaseAttributes,
     pageBlockAttributes, // Inner States
-    fetchInnerAttributes,
-    fetchDBAttributes, // Fetch Attribute Actions
+    isSaving,
+    loadDocumentAttributes,
+    loadDatabaseAttributes,
+    setAttribute,
+    deleteCustomAttribute,
   };
 });
 
@@ -169,11 +227,11 @@ function matchRules(attributeName: string) {
   });
 }
 
-function matchRegex(attributeName: string, rule: string) {
+function matchRegex(_attributeName: string, _rule: string) {
   return false;
 }
 
-function matchWild(attributeName: string, rule: string) {
+function matchWild(_attributeName: string, _rule: string) {
   // Wanna imporve this? goto Leetcode #44
   return false;
 }

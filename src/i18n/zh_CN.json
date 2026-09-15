@@ -1,4 +1,16 @@
 {
+    "attributes": {
+        "add": "添加属性",
+        "keyPlaceholder": "custom-key",
+        "valuePlaceholder": "属性值",
+        "save": "保存",
+        "saveSuccess": "设置成功",
+        "saveFailed": "设置失败",
+        "delete": "删除",
+        "deleteConfirm": "确认删除该属性？",
+        "deleteSuccess": "删除成功",
+        "deleteFailed": "删除失败"
+    },
     "addTopBarIcon": "使用插件添加一个顶栏按钮",
     "cancel": "取消",
     "save": "保存",

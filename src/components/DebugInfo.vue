@@ -1,8 +1,8 @@
 <template>
     <div class="attribute-info">
-        <div>Inspecting: {{ attributeStore.inspectBlockId }}</div>
-        <div>Attributes: {{ attributeStore.attributes }}</div>
-        <div>avs: {{ attributeStore.avs }}</div>
+        <div>Document ID: {{ attributeStore.documentId }}</div>
+        <div>Attributes: {{ attributeStore.builtInAttributes }}</div>
+        <div>Attribute views: {{ Object.keys(attributeStore.dataBaseAttributes) }}</div>
     </div>
 </template>
 

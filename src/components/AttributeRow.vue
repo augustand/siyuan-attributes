@@ -24,21 +24,26 @@
 
         <!-- 复选框 Unused -->
         <template v-else-if="renderMethod === 'checkbox'">
-            <t-checkbox v-model="value" :borderless="true" :disabled="!editable" />
+            <t-input v-model="value" :borderless="true" :disabled="!editable" @blur="handleSubmit" />
         </template>
 
         <template v-else>
             <t-input v-model="value" :borderless="true" placeholder="请输入" :disabled="!editable" @blur="handleSubmit" />
         </template>
+
+        <template #actions>
+            <AttributeRowActions v-if="key.startsWith('custom-')" :attribute-key="key" />
+        </template>
     </BaseRow>
 </template>
-  
+
 <script setup lang="tsx">
 import { useAttributesStore } from '@/store/attribute';
 import { storeToRefs } from 'pinia';
-import { fetchPost } from 'siyuan';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { toRefs } from 'vue';
+import AttributeRowActions from './AttributeRowActions.vue';
+import { getI18nText } from '@/services/i18n';
 
 const attributeStore = useAttributesStore();
 
@@ -54,19 +59,13 @@ const { builtInAttributes } = storeToRefs(attributeStore);
 const attributeValue = builtInAttributes.value[props.index]
 const { key, value, renderMethod, displayAs, editable } = toRefs(attributeValue)
 
-function handleSubmit() {
-    fetchPost(
-        "/api/attr/setBlockAttrs",
-        {
-            id: attributeStore.documentId,
-            attrs: {
-                [key.value]: value.value,
-            },
-        },
-        () => {
-            MessagePlugin.success("设置成功");
-        }
-    );
+async function handleSubmit() {
+    try {
+        await attributeStore.setAttribute(key.value, value.value);
+        MessagePlugin.success(getI18nText('attributes.saveSuccess', '设置成功'));
+    } catch (error) {
+        MessagePlugin.error(error instanceof Error ? error.message : getI18nText('attributes.saveFailed', '设置失败'));
+    }
 }
 
 </script>

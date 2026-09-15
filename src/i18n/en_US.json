@@ -1,4 +1,16 @@
 {
+    "attributes": {
+        "add": "Add attribute",
+        "keyPlaceholder": "custom-key",
+        "valuePlaceholder": "Attribute value",
+        "save": "Save",
+        "saveSuccess": "Saved",
+        "saveFailed": "Failed to save",
+        "delete": "Delete",
+        "deleteConfirm": "Delete this attribute?",
+        "deleteSuccess": "Deleted",
+        "deleteFailed": "Failed to delete"
+    },
     "addTopBarIcon": "Add a top bar icon by plugin",
     "cancel": "Cancel",
     "save": "Save",
