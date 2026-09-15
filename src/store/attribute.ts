@@ -3,6 +3,7 @@ import { fetchPost } from "siyuan";
 import type { IWebSocketData } from "siyuan";
 import { inject, reactive, ref } from "vue";
 import { displayRule, useConfigStore } from "./rules";
+import { normalizeCustomAttributeKey } from "@/services/attributeKeys";
 import { fetchBlockAttrs, writeBlockAttrs } from "@/services/blockAttrs";
 
 const pluginKey = "mux-siyuan-plugin-attributes-panel";
@@ -146,9 +147,7 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
   }
 
   function assertCustomKey(key: string): void {
-    if (!/^custom-[a-z][a-z0-9-]*$/.test(key)) {
-      throw new Error("Attribute key must match custom-[lowercase-name]");
-    }
+    normalizeCustomAttributeKey(key);
   }
 
   async function setAttribute(
@@ -160,6 +159,17 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
       assertCustomKey(key);
     }
 
+    isSaving.value = true;
+    try {
+      await writeBlockAttrs(documentId.value, { [key]: value });
+      await loadDocumentAttributes();
+    } finally {
+      isSaving.value = false;
+    }
+  }
+
+  async function createCustomAttribute(input: string, value: string): Promise<void> {
+    const key = normalizeCustomAttributeKey(input);
     isSaving.value = true;
     try {
       await writeBlockAttrs(documentId.value, { [key]: value });
@@ -203,6 +213,7 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
     isSaving,
     loadDocumentAttributes,
     loadDatabaseAttributes,
+    createCustomAttribute,
     setAttribute,
     deleteCustomAttribute,
   };

@@ -19,7 +19,11 @@
                 class="attr-selector"
                 :borderless="true"
                 :placeholder="keyPlaceholder"
-            />
+            >
+                <template v-if="actualKeySuffix" #suffix>
+                    <span class="key-suffix">{{ actualKeySuffix }}</span>
+                </template>
+            </t-input>
             <t-input
                 v-model="value"
                 class="attribute-value-input"
@@ -54,6 +58,7 @@ import { AddIcon } from 'tdesign-icons-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { useAttributesStore } from '@/store/attribute';
 import { getI18nText } from '@/services/i18n';
+import { isNormalizableCustomAttributeKey, normalizeCustomAttributeKey } from '@/services/attributeKeys';
 
 const store = useAttributesStore();
 const creating = ref(false);
@@ -67,9 +72,19 @@ const saveText = getI18nText('attributes.save', '保存');
 const cancelText = getI18nText('cancel', '取消');
 
 const canSave = computed(() => {
-    return /^custom-[a-z][a-z0-9-]*$/.test(key.value.trim())
+    return isNormalizableCustomAttributeKey(key.value)
         && value.value.trim().length > 0
         && !store.isSaving;
+});
+
+const actualKey = computed(() => {
+    if (!isNormalizableCustomAttributeKey(key.value)) return '';
+    return normalizeCustomAttributeKey(key.value);
+});
+
+const actualKeySuffix = computed(() => {
+    if (!key.value.trim() || actualKey.value === key.value.trim().toLowerCase()) return '';
+    return actualKey.value.replace(key.value.trim().toLowerCase(), '');
 });
 
 function cancel(): void {
@@ -82,7 +97,7 @@ async function save(): Promise<void> {
     if (!canSave.value) return;
 
     try {
-        await store.setAttribute(key.value.trim(), value.value.trim(), { requireCustom: true });
+        await store.createCustomAttribute(key.value, value.value.trim());
         MessagePlugin.success(getI18nText('attributes.saveSuccess', '设置成功'));
         cancel();
     } catch (error) {
@@ -113,5 +128,10 @@ async function save(): Promise<void> {
 
 .attr-selector {
     width: 150px;
+}
+
+.key-suffix {
+    color: var(--td-text-color-placeholder);
+    white-space: nowrap;
 }
 </style>

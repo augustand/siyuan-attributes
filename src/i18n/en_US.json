@@ -1,7 +1,8 @@
 {
     "attributes": {
         "add": "Add attribute",
-        "keyPlaceholder": "custom-key",
+        "keyPlaceholder": "Name",
+        "actualKey": "Saved as",
         "valuePlaceholder": "Attribute value",
         "save": "Save",
         "saveSuccess": "Saved",

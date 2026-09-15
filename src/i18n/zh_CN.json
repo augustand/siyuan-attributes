@@ -1,7 +1,8 @@
 {
     "attributes": {
         "add": "添加属性",
-        "keyPlaceholder": "custom-key",
+        "keyPlaceholder": "名称",
+        "actualKey": "实际保存为",
         "valuePlaceholder": "属性值",
         "save": "保存",
         "saveSuccess": "设置成功",

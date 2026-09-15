@@ -3,6 +3,7 @@ import { createApp, defineComponent } from "vue";
 import type { App } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAttributesStore } from "@/store/attribute";
+import { normalizeCustomAttributeKey } from "@/services/attributeKeys";
 import type { Store } from "pinia";
 
 const fetchBlockAttrs = vi.fn();
@@ -61,6 +62,18 @@ describe("attributes store CRUD", () => {
 
     expect(writeBlockAttrs).toHaveBeenCalledWith("doc", { "custom-x": "1" });
     expect(store.builtInAttributes.some((item) => item.key === "custom-x")).toBe(true);
+  });
+
+  it("normalizes user input to a custom attribute key", async () => {
+    writeBlockAttrs.mockResolvedValue(undefined);
+    fetchBlockAttrs.mockResolvedValue({ id: "doc", "custom-project": "1" });
+    const store = initializeStore();
+
+    await store.createCustomAttribute("Project", "1");
+
+    expect(normalizeCustomAttributeKey("Project")).toBe("custom-project");
+    expect(writeBlockAttrs).toHaveBeenCalledWith("doc", { "custom-project": "1" });
+    expect(store.builtInAttributes.some((item) => item.key === "custom-project")).toBe(true);
   });
 
   it("rejects protected keys on delete", async () => {
