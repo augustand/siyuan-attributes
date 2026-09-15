@@ -25,7 +25,7 @@ console.log("distDir=>", distDir)
 export default defineConfig({
     resolve: {
         alias: {
-            "@": resolve(__dirname, "src"),
+            "@": resolve(import.meta.dirname, "src"),
         }
     },
 
@@ -62,7 +62,8 @@ export default defineConfig({
                     dest: "./",
                 },
                 {
-                    src: "./src/i18n/**",
+                    src: "src/i18n/*.json",
+                    rename: { stripBase: 2 },
                     dest: "./i18n/",
                 },
             ],
@@ -75,12 +76,13 @@ export default defineConfig({
     // 在这里自定义变量
     define: {
         "process.env.DEV_MODE": `"${isWatch}"`,
+        "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV),
     },
 
     build: {
         // 输出路径
         outDir: distDir,
-        emptyOutDir: false,
+        emptyOutDir: !isWatch,
 
         // 构建后是否生成 source map 文件
         sourcemap: false,
@@ -93,7 +95,7 @@ export default defineConfig({
 
         lib: {
             // Could also be a dictionary or array of multiple entry points
-            entry: resolve(__dirname, "src/index.ts"),
+            entry: resolve(import.meta.dirname, "src/index.ts"),
             // the proper extensions will be added
             fileName: "index",
             formats: ["cjs"],
