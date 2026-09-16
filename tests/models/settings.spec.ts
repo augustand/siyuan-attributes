@@ -12,6 +12,50 @@ describe("normalizePanelSettings", () => {
     expect(normalizePanelSettings(undefined)).toEqual(DEFAULT_PANEL_SETTINGS);
   });
 
+  it("locks immutable document keys even when persisted input is editable", () => {
+    const settings = normalizePanelSettings({
+      version: 1,
+      showPanel: true,
+      showDocumentPanel: true,
+      showDatabasePanel: true,
+      rules: [
+        ...DEFAULT_PANEL_SETTINGS.rules,
+        { id: "user-id", name: "ID", rule: "id", matchMethod: "exact", scope: "document", display: true, displayAs: "ID", editable: true, order: 1 },
+      ],
+    });
+
+    expect(settings.rules.find((rule) => rule.id === "system-id")?.editable).toBe(false);
+    expect(settings.rules.find((rule) => rule.id === "system-updated")?.editable).toBe(false);
+    expect(settings.rules.find((rule) => rule.rule === "id")?.editable).toBe(false);
+  });
+
+  it("locks system rule target fields but keeps display metadata editable", () => {
+    const settings = normalizePanelSettings({
+      version: 1,
+      rules: [{
+        ...DEFAULT_PANEL_SETTINGS.rules.find((rule) => rule.id === "system-id"),
+        name: "Changed internal name",
+        rule: "name",
+        matchMethod: "wildcard",
+        scope: "all",
+        displayAs: "Changed display",
+        editable: true,
+        order: 99,
+      }],
+    });
+    const rule = settings.rules.find((item) => item.id === "system-id");
+
+    expect(rule).toMatchObject({
+      name: "文档ID",
+      rule: "id",
+      matchMethod: "exact",
+      scope: "document",
+      displayAs: "Changed display",
+      editable: false,
+      order: 99,
+    });
+  });
+
   it("normalizes versioned rules and preserves unknown rules", () => {
     const settings = normalizePanelSettings({
       version: 1,
@@ -67,6 +111,8 @@ describe("normalizeLegacySettings", () => {
       order: 7,
     });
     expect(settings.rules.some((rule) => rule.rule === "updated")).toBe(true);
+    expect(settings.rules.find((rule) => rule.rule === "id")?.editable).toBe(false);
+    expect(nameRule?.editable).toBe(false); // legacy fixture explicitly disables name
   });
 });
 

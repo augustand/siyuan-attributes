@@ -147,7 +147,7 @@ export const useConfigStore = defineStore(pluginKey + "settings", () => {
       return [{
         ...field,
         name: rule.displayAs || field.name,
-        editable: rule.editable,
+        editable: field.editable && rule.editable,
         icon: rule.icon || field.icon,
         order: rule.order,
       }];

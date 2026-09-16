@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { inject, reactive, ref } from "vue";
 import { useConfigStore } from "./rules";
 import { normalizeCustomAttributeKey } from "@/services/attributeKeys";
+import { isReadOnlyDocumentAttributeName } from "@/models/settings";
 import { fetchBlockAttrs, writeBlockAttrs } from "@/services/blockAttrs";
 import {
   fetchAttributeViews,
@@ -53,7 +54,7 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
           value: attributeValue,
           name: rule.name,
           displayAs: rule.displayAs || attributeName,
-          editable: rule.editable,
+          editable: rule.editable && !isReadOnlyDocumentAttributeName(attributeName),
           renderMethod: rule.renderMethod,
           order: rule.order,
           icon: rule.icon,
@@ -134,6 +135,10 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
     value: string,
     options: { requireCustom?: boolean } = {},
   ): Promise<void> {
+    if (isReadOnlyDocumentAttributeName(key)) {
+      throw new Error(`Attribute key is read-only: ${key}`);
+    }
+
     if (options.requireCustom) {
       assertCustomKey(key);
     }

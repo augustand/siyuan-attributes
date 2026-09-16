@@ -41,6 +41,7 @@
         "order": "Order",
         "display": "Display",
         "editable": "Editable",
+        "readOnlyCapability": "This field is managed by SiYuan. Its value cannot be changed here; the display name is only a plugin alias.",
         "reset": "Reset defaults",
         "save": "Save settings",
         "resetConfirm": "Reset to defaults? Unsaved changes will be lost.",

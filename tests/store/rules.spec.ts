@@ -61,6 +61,49 @@ describe("settings store", () => {
     expect(persisted.rules.find((rule) => rule.id === id)?.displayAs).toBe("Custom ID");
   });
 
+  it("locks immutable system fields when a rule is updated", async () => {
+    const store = initializeStore();
+    await store.initialize();
+    const id = "system-id";
+
+    await store.updateRule(id, { editable: true, rule: "name" });
+
+    const rule = store.settings.rules.find((item) => item.id === id);
+    expect(rule).toMatchObject({ editable: false, rule: "id" });
+  });
+
+  it("cannot enable unsupported database fields from settings", async () => {
+    const store = initializeStore();
+    await store.initialize();
+    await store.updateSettings({
+      ...store.settings,
+      rules: [
+        ...store.settings.rules,
+        {
+          id: "user-template", name: "Template", rule: "Template", matchMethod: "exact",
+          scope: "database", display: true, displayAs: "Template", editable: true, order: 1,
+        },
+      ],
+    });
+    const unsupported: DatabaseField = {
+      keyID: "key-template",
+      name: "Template",
+      type: "template",
+      icon: "sum",
+      editable: false,
+      options: [],
+      value: {
+        id: "value-template", keyID: "key-template", itemID: "item-1", type: "template",
+        text: "", url: "", email: "", phone: "", template: "calc", checked: false,
+        options: [], raw: {},
+      },
+    };
+
+    await store.updateRule("system-custom-avs-wildcard", { editable: true });
+
+    expect(store.applyDatabaseRules([unsupported])[0].editable).toBe(false);
+  });
+
   it("applies database visibility, names, editability, and ordering", async () => {
     const store = initializeStore();
     await store.initialize();
@@ -94,7 +137,7 @@ describe("settings store", () => {
     expect(fields).toHaveLength(1);
     expect(fields[0]).toMatchObject({
       name: "Linked databases",
-      editable: false,
+      editable: false, // source field is unsupported/read-only, so the rule cannot enable it
       order: -10,
     });
   });

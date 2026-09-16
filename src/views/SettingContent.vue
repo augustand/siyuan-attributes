@@ -152,15 +152,15 @@
                                     </label>
                                     <label>
                                         <span>{{ labels.ruleName }}</span>
-                                        <t-input v-model="selectedRule.name" />
+                                        <t-input v-model="selectedRule.name" :disabled="selectedRule.system" />
                                     </label>
                                     <label>
                                         <span>{{ labels.matchExpression }}</span>
-                                        <t-input v-model="selectedRule.rule" />
+                                        <t-input v-model="selectedRule.rule" :disabled="selectedRule.system" />
                                     </label>
                                     <label>
                                         <span>{{ labels.matchMethod }}</span>
-                                        <t-select v-model="selectedRule.matchMethod">
+                                        <t-select v-model="selectedRule.matchMethod" :disabled="selectedRule.system">
                                             <t-option value="exact" :label="labels.exact" />
                                             <t-option value="wildcard" :label="labels.wildcard" />
                                             <t-option value="regex" :label="labels.regex" />
@@ -168,7 +168,7 @@
                                     </label>
                                     <label>
                                         <span>{{ labels.scope }}</span>
-                                        <t-select v-model="selectedRule.scope">
+                                        <t-select v-model="selectedRule.scope" :disabled="selectedRule.system">
                                             <t-option value="document" :label="labels.document" />
                                             <t-option value="database" :label="labels.database" />
                                             <t-option value="all" :label="labels.all" />
@@ -184,9 +184,15 @@
                                     </label>
                                     <label class="switch-field">
                                         <span>{{ labels.editable }}</span>
-                                        <t-switch v-model="selectedRule.editable" />
+                                        <t-switch
+                                            v-model="selectedRule.editable"
+                                            :disabled="isEditableLocked(selectedRule)"
+                                        />
                                     </label>
                                 </div>
+                                <p v-if="isEditableLocked(selectedRule)" class="locked-help">
+                                    {{ labels.readOnlyCapability }}
+                                </p>
 
                                 <p class="editor-help">{{ labels.editorHelp }}</p>
                             </aside>
@@ -218,6 +224,7 @@ import { computed, onMounted, ref } from 'vue';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { useConfigStore } from '@/store/rules';
 import { normalizePanelSettings } from '@/models/settings';
+import { isReadOnlyDocumentAttributeName } from '@/models/settings';
 import type { DisplayRule, DisplayRuleScope, PanelSettings } from '@/models/settings';
 import { getI18nText } from '@/services/i18n';
 
@@ -282,6 +289,7 @@ const labels = {
     saveFailed: getI18nText('settings.saveFailed', '保存设置失败'),
     resetSuccess: getI18nText('settings.resetSuccess', '已恢复默认设置'),
     resetFailed: getI18nText('settings.resetFailed', '恢复默认设置失败'),
+    readOnlyCapability: getI18nText('settings.readOnlyCapability', '该字段由思源管理，值不可通过面板修改；显示名仅是插件内别名。'),
 };
 
 const busy = computed(() => loading.value || saving.value);
@@ -336,6 +344,11 @@ function scopeLabel(scope: DisplayRuleScope): string {
     if (scope === 'document') return labels.document;
     if (scope === 'database') return labels.database;
     return labels.all;
+}
+
+function isEditableLocked(rule: DisplayRule): boolean {
+    if (rule.system && rule.id !== 'system-name' && rule.id !== 'system-alias') return true;
+    return rule.matchMethod === 'exact' && isReadOnlyDocumentAttributeName(rule.rule);
 }
 
 async function load(): Promise<void> {

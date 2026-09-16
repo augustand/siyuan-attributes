@@ -24,6 +24,29 @@ export interface PanelSettings {
   rules: DisplayRule[];
 }
 
+export const READ_ONLY_DOCUMENT_ATTRIBUTE_KEYS = new Set([
+  "id",
+  "updated",
+  "created",
+  "type",
+  "subtype",
+  "fold",
+  "scroll",
+  "title",
+  "icon",
+  "custom-avs",
+]);
+
+export function isReadOnlyDocumentAttributeName(name: string): boolean {
+  if (READ_ONLY_DOCUMENT_ATTRIBUTE_KEYS.has(name)) return true;
+  return name.startsWith("custom-avs");
+}
+
+const EDITABLE_SYSTEM_RULE_IDS = new Set([
+  "system-name",
+  "system-alias",
+]);
+
 function ruleID(rule: string, name: string): string {
   return `${rule}::${name}`;
 }
@@ -107,23 +130,48 @@ export const DEFAULT_PANEL_SETTINGS: PanelSettings = {
 export function normalizeDisplayRule(input: unknown): DisplayRule | undefined {
   if (typeof input !== "object" || input === null) return undefined;
   const source = input as Record<string, unknown>;
-  const rule = string(source.rule, "");
-  const name = string(source.name, rule);
+  let rule = string(source.rule, "");
+  let name = string(source.name, rule);
   if (!rule || !name) return undefined;
 
+  const id = string(source.id, ruleID(rule, name));
+  const isSystem = bool(source.system, false) || id.startsWith("system-");
+  let matchMethod = normalizeMatchMethod(source.matchMethod);
+  let scope = normalizeScope(source.scope);
+  let editable = bool(source.editable, true);
+
+  // System rules identify SiYuan-managed fields. Settings may change display
+  // metadata, but cannot retarget the rule or grant write access that the
+  // underlying field does not have.
+  if (isSystem) {
+    const defaultRule = DEFAULT_PANEL_SETTINGS.rules.find((item) => item.id === id);
+    if (defaultRule) {
+      rule = defaultRule.rule;
+      name = defaultRule.name;
+      matchMethod = defaultRule.matchMethod;
+      scope = defaultRule.scope;
+    }
+    if (!EDITABLE_SYSTEM_RULE_IDS.has(id)) editable = false;
+  }
+
+  // A user-created rule cannot grant edit access to an immutable key either.
+  if (matchMethod === "exact" && isReadOnlyDocumentAttributeName(rule)) {
+    editable = false;
+  }
+
   return {
-    id: string(source.id, ruleID(rule, name)),
+    id,
     name,
     rule,
-    matchMethod: normalizeMatchMethod(source.matchMethod),
-    scope: normalizeScope(source.scope),
+    matchMethod,
+    scope,
     display: bool(source.display, true),
     displayAs: string(source.displayAs, name),
-    editable: bool(source.editable, true),
+    editable,
     renderMethod: typeof source.renderMethod === "string" ? source.renderMethod : undefined,
     order: number(source.order, 1000),
     icon: typeof source.icon === "string" ? source.icon : undefined,
-    system: bool(source.system, false),
+    system: isSystem,
   };
 }
 

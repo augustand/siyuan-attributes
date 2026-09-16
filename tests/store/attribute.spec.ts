@@ -124,6 +124,13 @@ describe("attributes store CRUD", () => {
     expect(writeBlockAttrs).not.toHaveBeenCalled();
   });
 
+  it("rejects writes to immutable document keys", async () => {
+    const store = initializeStore();
+    await expect(store.setAttribute("id", "new-id")).rejects.toThrow("read-only");
+    await expect(store.setAttribute("updated", "new-time")).rejects.toThrow("read-only");
+    expect(writeBlockAttrs).not.toHaveBeenCalled();
+  });
+
   it("deletes custom keys by writing an empty string", async () => {
     writeBlockAttrs.mockResolvedValue(undefined);
     fetchBlockAttrs.mockResolvedValue({ id: "doc" });
