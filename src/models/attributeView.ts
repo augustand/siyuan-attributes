@@ -23,8 +23,9 @@ export interface DatabaseOption {
 }
 
 export interface DatabaseDateValue {
-  content?: number;
-  content2?: number;
+  content: number;
+  content2: number;
+  isNotEmpty2: boolean;
   hasEndDate: boolean;
   isNotTime: boolean;
   isNotEmpty: boolean;
@@ -42,7 +43,7 @@ export interface DatabaseValue {
   phone: string;
   template: string;
   checked: boolean;
-  date?: DatabaseDateValue;
+  date: DatabaseDateValue;
   options: DatabaseOption[];
   raw: Record<string, unknown>;
 }
@@ -63,7 +64,28 @@ export interface DatabasePanel {
   fields: DatabaseField[];
 }
 
-const editableTypes = new Set<DatabaseFieldType>(["text", "url", "number", "checkbox"]);
+const editableTypes = new Set<DatabaseFieldType>([
+  "text",
+  "url",
+  "number",
+  "checkbox",
+  "date",
+  "select",
+  "mSelect",
+]);
+
+const optionTypes = new Set<DatabaseFieldType>(["select", "mSelect"]);
+
+function emptyDatabaseDate(): DatabaseDateValue {
+  return {
+    content: 0,
+    content2: 0,
+    isNotEmpty: false,
+    isNotEmpty2: false,
+    hasEndDate: false,
+    isNotTime: true,
+  };
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -116,12 +138,14 @@ function normalizeDate(value: unknown): DatabaseDateValue | undefined {
   const content = readOptionalNumber(source.content);
   const content2 = readOptionalNumber(source.content2);
   const isNotEmpty = readBoolean(source, "isNotEmpty", content !== undefined);
+  const isNotEmpty2 = readBoolean(source, "isNotEmpty2", content2 !== undefined);
 
   if (!isNotEmpty && content === undefined && content2 === undefined) return undefined;
 
   return {
-    content,
-    content2,
+    content: content ?? 0,
+    content2: content2 ?? 0,
+    isNotEmpty2,
     hasEndDate: readBoolean(source, "hasEndDate"),
     isNotTime: readBoolean(source, "isNotTime", true),
     isNotEmpty,
@@ -147,7 +171,7 @@ function normalizeDatabaseValue(
     phone: readString(asRecord(rawValue.phone), "content"),
     template: readString(asRecord(rawValue.template), "content"),
     checked: readBoolean(asRecord(rawValue.checkbox), "checked"),
-    date: normalizeDate(rawValue.date),
+    date: normalizeDate(rawValue.date) ?? emptyDatabaseDate(),
     options: readOptions(rawValue.mSelect),
     raw: rawValue,
   };
@@ -181,7 +205,9 @@ export function normalizeAttributeViews(input: unknown): DatabasePanel[] {
         name: readString(key, "name"),
         type: keyType,
         icon: readString(key, "icon") || "view-list",
-        editable: editableTypes.has(keyType) && Boolean(value.itemID),
+        editable: editableTypes.has(keyType)
+          && Boolean(value.itemID)
+          && (!optionTypes.has(keyType) || options.length > 0),
         value,
         options,
       };
@@ -217,7 +243,6 @@ export function buildDatabaseCellValue(field: DatabaseField, value: DatabaseValu
     case "checkbox":
       return { checkbox: { checked: value.checked } };
     case "date":
-      if (!value.date) return { date: { isNotEmpty: false } };
       return { date: value.date };
     case "select":
     case "mSelect":

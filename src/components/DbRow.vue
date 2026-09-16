@@ -1,9 +1,16 @@
 <template>
     <BaseRow :name="field?.name || ''" :key="field?.keyID" :icon="databaseIcons[field?.type]">
 
-        <!-- 单选（M2 暂只读） -->
+        <!-- 单选 -->
         <template v-if="field?.type === 'select'">
-            <t-select v-model="selectValue" :borderless="true" placeholder="-请选择-" readonly>
+            <t-select
+                v-model="selectName"
+                :borderless="true"
+                :clearable="true"
+                :disabled="!field.editable || store.isSavingDatabaseAttributes"
+                placeholder="-请选择-"
+                @change="handleSubmit"
+            >
                 <t-option
                     v-for="item in field.options"
                     :key="item.name"
@@ -47,14 +54,16 @@
             />
         </template>
 
-        <!-- 多选（M2 暂只读） -->
+        <!-- 多选 -->
         <template v-else-if="field?.type === 'mSelect'">
             <t-select
-                readonly
-                v-model="selectValue"
+                v-model="multiSelectNames"
                 :borderless="true"
-                placeholder="-请选择-"
+                :clearable="true"
+                :disabled="!field.editable || store.isSavingDatabaseAttributes"
                 multiple
+                placeholder="-请选择-"
+                @change="handleSubmit"
             >
                 <t-option
                     v-for="item in field.options"
@@ -65,26 +74,30 @@
             </t-select>
         </template>
 
-        <!-- 日期（M2 暂只读） -->
+        <!-- 日期 -->
+        <template v-else-if="field?.type === 'date' && field.value.date?.hasEndDate">
+            <t-date-range-picker
+                :value="dateRange"
+                :borderless="true"
+                :clearable="true"
+                :disabled="!field.editable || store.isSavingDatabaseAttributes"
+                :enable-time-picker="!field.value.date.isNotTime"
+                placeholder="请选择"
+                value-type="time-stamp"
+                @change="handleDateChange"
+            />
+        </template>
         <template v-else-if="field?.type === 'date'">
-            <template v-if="field.value.date?.hasEndDate">
-                <t-date-range-picker
-                    readonly
-                    v-model="dateRange"
-                    :borderless="true"
-                    placeholder="请选择"
-                    :enable-time-picker="!field.value.date.isNotTime"
-                />
-            </template>
-            <template v-else>
-                <t-date-picker
-                    readonly
-                    v-model="dateValue"
-                    :borderless="true"
-                    placeholder="请选择"
-                    :enable-time-picker="!field.value.date?.isNotTime"
-                />
-            </template>
+            <t-date-picker
+                :value="dateValue"
+                :borderless="true"
+                :clearable="true"
+                :disabled="!field.editable || store.isSavingDatabaseAttributes"
+                :enable-time-picker="!field.value.date.isNotTime"
+                placeholder="请选择"
+                value-type="time-stamp"
+                @change="handleDateChange"
+            />
         </template>
 
         <!-- 复选框 -->
@@ -148,15 +161,29 @@ const field = computed(() => {
     );
 });
 
-const selectValue = computed({
-    get: () => field.value?.value.options.map((option) => option.name) ?? [],
-    set: () => undefined,
+const selectName = computed({
+    get: () => field.value?.value.options[0]?.name,
+    set: (name) => {
+        if (!field.value) return;
+        const option = field.value.options.find((item) => item.name === name);
+        field.value.value.options = option ? [option] : [];
+    },
 });
 
-const dateValue = computed(() => field.value?.value.date?.content);
+const multiSelectNames = computed({
+    get: () => field.value?.value.options.map((option) => option.name) ?? [],
+    set: (names) => {
+        if (!field.value) return;
+        const selected = new Set(names);
+        field.value.value.options = field.value.options.filter((option) => selected.has(option.name));
+    },
+});
+
+const dateValue = computed(() => field.value?.value.date.content || undefined);
 const dateRange = computed(() => {
     const date = field.value?.value.date;
-    return date?.hasEndDate ? [date.content, date.content2] : undefined;
+    if (!date?.hasEndDate) return undefined;
+    return [date.content || undefined, date.content2 || undefined];
 });
 
 const readonlyValue = computed(() => {
@@ -180,5 +207,39 @@ async function handleSubmit(): Promise<void> {
                 : getI18nText('attributes.saveFailed', '设置失败'),
         );
     }
+}
+
+function clearDate(): void {
+    const date = field.value?.value.date;
+    if (!date) return;
+
+    date.content = 0;
+    date.content2 = 0;
+    date.isNotEmpty = false;
+    date.isNotEmpty2 = false;
+}
+
+function handleDateChange(value: unknown): void {
+    const date = field.value?.value.date;
+    if (!date) return;
+
+    if (Array.isArray(value)) {
+        const [start, end] = value;
+        const startAt = typeof start === 'number' ? start : 0;
+        const endAt = typeof end === 'number' ? end : 0;
+        date.content = startAt;
+        date.content2 = endAt;
+        date.isNotEmpty = startAt !== 0;
+        date.isNotEmpty2 = endAt !== 0;
+    } else if (typeof value === 'number') {
+        date.content = value;
+        date.content2 = 0;
+        date.isNotEmpty = value !== 0;
+        date.isNotEmpty2 = false;
+    } else {
+        clearDate();
+    }
+
+    void handleSubmit();
 }
 </script>
