@@ -157,3 +157,12 @@
     --td-scrollbar-hover-color: rgba(255, 255, 255, 0.3);
     --td-scroll-track-color: #333;
 }
+
+// SiYuan wraps plugin settings in `.b3-label`; these rules let the Vue shell own the dialog layout.
+.mux-plugin-settings {
+    width: 100% !important;
+    min-width: min(920px, 88vw) !important;
+    height: max(540px, calc(78vh - 132px)) !important;
+    max-width: none !important;
+    overflow: hidden !important;
+}

@@ -29,8 +29,8 @@ export default class PluginSample extends Plugin {
     this.settingApp.mount(this.settingPageDiv);
 
     this.setting = new Setting({
-      width: "920px",
-      height: "72vh",
+      width: "1080px",
+      height: "78vh",
     });
     this.setting.addItem({
       title: "属性面板设置",
