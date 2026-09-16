@@ -1,249 +1,184 @@
-
 <template>
-    <BaseRow :name="name" :key="cellID" :icon="siyuanDatabaseIcons[type]">
+    <BaseRow :name="field?.name || ''" :key="field?.keyID" :icon="databaseIcons[field?.type]">
 
-        <!-- 单选 -->
-        <template v-if="type === 'select'">
+        <!-- 单选（M2 暂只读） -->
+        <template v-if="field?.type === 'select'">
             <t-select v-model="selectValue" :borderless="true" placeholder="-请选择-" readonly>
-                <t-option v-for="(item, index) in options" :key="index" :value="index" :label="item.name"></t-option>
+                <t-option
+                    v-for="item in field.options"
+                    :key="item.name"
+                    :value="item.name"
+                    :label="item.name"
+                />
             </t-select>
         </template>
 
         <!-- 文本 -->
-        <template v-else-if="type === 'text'">
-            <t-input v-model="value.content" :borderless="true" placeholder="请输入" @blur="handleSubmit" />
+        <template v-else-if="field?.type === 'text'">
+            <t-input
+                v-model="field.value.text"
+                :borderless="true"
+                :disabled="!field.editable || store.isSavingDatabaseAttributes"
+                placeholder="请输入"
+                @blur="handleSubmit"
+            />
         </template>
 
         <!-- 链接 -->
-        <template v-else-if="type === 'url'">
-            <t-input v-model="value.content" :borderless="true" placeholder="请输入" @blur="handleSubmit" />
+        <template v-else-if="field?.type === 'url'">
+            <t-input
+                v-model="field.value.url"
+                :borderless="true"
+                :disabled="!field.editable || store.isSavingDatabaseAttributes"
+                placeholder="请输入"
+                @blur="handleSubmit"
+            />
         </template>
 
         <!-- 数字 -->
-        <template v-else-if="type === 'number'">
-            <t-input-number v-model="value.content" :borderless="true" placeholder="请输入" @change="handleChange" />
+        <template v-else-if="field?.type === 'number'">
+            <t-input-number
+                v-model="field.value.number"
+                :borderless="true"
+                :disabled="!field.editable || store.isSavingDatabaseAttributes"
+                placeholder="请输入"
+                @blur="handleSubmit"
+                @enter="handleSubmit"
+            />
         </template>
 
-        <!-- 多选 -->
-        <template v-else-if="type === 'mSelect'">
-            <t-select readonly v-model="selectValue" :borderless="true" placeholder="-请选择-" multiple>
-                <t-option v-for="(item, index) in options" :key="index" :value="index" :label="item.name"></t-option>
+        <!-- 多选（M2 暂只读） -->
+        <template v-else-if="field?.type === 'mSelect'">
+            <t-select
+                readonly
+                v-model="selectValue"
+                :borderless="true"
+                placeholder="-请选择-"
+                multiple
+            >
+                <t-option
+                    v-for="item in field.options"
+                    :key="item.name"
+                    :value="item.name"
+                    :label="item.name"
+                />
             </t-select>
         </template>
 
-        <!-- 日期 -->
-        <template v-else-if="type === 'date'">
-            <template v-if="!value.hasEndDate">
-                <t-date-picker readonly v-model="value.content" :borderless="true" placeholder="请选择"
-                    :enableTimePicker="!value.isNotTime" allow-input @change="handleDateChange" />
+        <!-- 日期（M2 暂只读） -->
+        <template v-else-if="field?.type === 'date'">
+            <template v-if="field.value.date?.hasEndDate">
+                <t-date-range-picker
+                    readonly
+                    v-model="dateRange"
+                    :borderless="true"
+                    placeholder="请选择"
+                    :enable-time-picker="!field.value.date.isNotTime"
+                />
             </template>
             <template v-else>
-                <t-date-range-picker readonly v-model="dateRange" :borderless="true" placeholder="请选择"
-                    :enableTimePicker="!value.isNotTime" allow-input @change="handleDateChange" />
+                <t-date-picker
+                    readonly
+                    v-model="dateValue"
+                    :borderless="true"
+                    placeholder="请选择"
+                    :enable-time-picker="!field.value.date?.isNotTime"
+                />
             </template>
         </template>
 
         <!-- 复选框 -->
-        <template v-else-if="type === 'checkbox'">
-            <t-checkbox v-model="value.checked" :borderless="true" @change="handleSubmit" />
+        <template v-else-if="field?.type === 'checkbox'">
+            <t-checkbox
+                v-model="field.value.checked"
+                :disabled="!field.editable || store.isSavingDatabaseAttributes"
+                @change="handleSubmit"
+            />
         </template>
 
         <!-- 模板 -->
-        <template v-else-if="type === 'template'">
-            <t-input v-model="value.content" :borderless="true" placeholder="请输入" readonly />
+        <template v-else-if="field?.type === 'template'">
+            <t-input v-model="field.value.template" :borderless="true" placeholder="请输入" readonly />
         </template>
 
         <template v-else>
-            <t-input v-model="value" :borderless="true" placeholder="请输入" />
+            <t-input :value="readonlyValue" :borderless="true" placeholder="暂不支持编辑" readonly />
         </template>
     </BaseRow>
 </template>
 
 <script setup lang="ts">
-import { useAttributesStore } from '@/store/attribute';
-import BaseRow from './BaseRow.vue';
 import { computed } from 'vue';
-import { fetchPost } from 'siyuan';
 import { storeToRefs } from 'pinia';
 import { MessagePlugin } from 'tdesign-vue-next';
+import { useAttributesStore } from '@/store/attribute';
+import BaseRow from './BaseRow.vue';
+import { getI18nText } from '@/services/i18n';
 
+const databaseIcons: Record<string, string> = {
+    text: 'view-list',
+    select: 'chevron-down-s',
+    url: 'link',
+    number: 'add-and-subtract',
+    mSelect: 'chevron-down-double-s',
+    date: 'calendar-event',
+    checkbox: 'check',
+    template: 'sum',
+    relation: 'link',
+    rollup: 'sum',
+    mAsset: 'image',
+    email: 'mail',
+    phone: 'call',
+    created: 'calendar',
+    updated: 'calendar',
+};
 
-const siyuanDatabaseIcons = {
-    'text': 'view-list',
-    'select': 'chevron-down-s',
-    'url': 'link',
-    'number': 'add-and-subtract',
-    'mSelect': 'chevron-down-double-s',
-    'date': 'calendar-event',
-    'checkbox': 'check',
-    'template': 'sum',
-}
-
-const props = defineProps({
-    avID: {
-        type: String,
-        required: true,
-    },
-    fieldIndex: {
-        type: Number,
-        required: true,
-    },
-});
+const props = defineProps<{
+    avID: string;
+    fieldKeyID: string;
+}>();
 
 const attributeStore = useAttributesStore();
+const store = attributeStore;
+const { dataBaseAttributes } = storeToRefs(attributeStore);
 
-const { dataBaseAttributes } = storeToRefs(attributeStore)
-const targetTable = dataBaseAttributes.value[props.avID]
-const targetField = targetTable.fields[props.fieldIndex]
-const { cellID, keyID, rowID, name, value, type, options } = targetField
-
-const dateRange = computed({
-    get() {
-        if (type !== "date" || !value.hasEndDate) {
-            return undefined
-        } else {
-            return [value.content, value.content2]
-        }
-    },
-    set(newValue) {
-        console.log("set", newValue)
-        value.content = newValue[0]
-        value.content2 = newValue[1]
-    }
-})
+const field = computed(() => {
+    return dataBaseAttributes.value[props.avID]?.fields.find(
+        (item) => item.keyID === props.fieldKeyID,
+    );
+});
 
 const selectValue = computed({
-    get() {
-        if (type === "select") {
-            return value.content[0]
-        } else if (type === "mSelect") {
-            return value.content
-        } else {
-            return undefined
-        }
-    },
-    set(newValue) {
-        console.log("set", newValue)
-        if (type === "select") {
-            value.content[0] = newValue
-        } else if (type === "mSelect") {
-            value.content = newValue
-        }
+    get: () => field.value?.value.options.map((option) => option.name) ?? [],
+    set: () => undefined,
+});
 
-        // 映射回去options
-        const optionsValue = value.content.map((item) => {
-            return options[item]
-        })
+const dateValue = computed(() => field.value?.value.date?.content);
+const dateRange = computed(() => {
+    const date = field.value?.value.date;
+    return date?.hasEndDate ? [date.content, date.content2] : undefined;
+});
 
-        fetchPost(
-            "/api/av/setAttributeViewBlockAttr",
-            {
-                "avID": props.avID,
-                "cellID": cellID,
-                "keyID": keyID,
-                "rowID": rowID,
-                "value": {
-                    "mSelect": {
-                        "content": optionsValue
-                    }
-                },
-            }
-        );
-    }
-})
+const readonlyValue = computed(() => {
+    const rendered = field.value?.value.raw.renderedContent;
+    return typeof rendered === 'string' ? rendered : '';
+});
 
-function handleSubmit(x) {
-    console.log("handleSubmit", x)
-    if (type === "checkbox") {
-        fetchPost(
-            "/api/av/setAttributeViewBlockAttr",
-            {
-                "avID": props.avID,
-                "cellID": cellID,
-                "keyID": keyID,
-                "rowID": rowID,
-                "value": {
-                    "checkbox": {
-                        "checked": x
-                    }
-                },
-            },
-            () => {
-                MessagePlugin.success("设置成功")
-            }
-        );
-    } else {
-        fetchPost(
-            "/api/av/setAttributeViewBlockAttr",
-            {
-                "avID": props.avID,
-                "cellID": cellID,
-                "keyID": keyID,
-                "rowID": rowID,
-                "value": {
-                    [type]: {
-                        "content": x
-                    }
-                },
-            },
-            () => {
-                MessagePlugin.success("设置成功")
-            }
+async function handleSubmit(): Promise<void> {
+    if (!field.value || !field.value.editable) return;
+
+    try {
+        await attributeStore.writeDatabaseCell({
+            avID: props.avID,
+            field: field.value,
+        });
+        MessagePlugin.success(getI18nText('attributes.saveSuccess', '设置成功'));
+    } catch (error) {
+        MessagePlugin.error(
+            error instanceof Error
+                ? error.message
+                : getI18nText('attributes.saveFailed', '设置失败'),
         );
     }
 }
-
-function handleChange(x, context) {
-    console.log("handleChange", x, context)
-    // 'add' | 'reduce' | 'input' | 'blur' | 'enter' | 'clear' | 'props'
-    if (["add", "reduce", "blur", "enter", "clear"].indexOf(context.type) === -1) {
-        return
-    }
-
-    fetchPost(
-        "/api/av/setAttributeViewBlockAttr",
-        {
-            "avID": props.avID,
-            "cellID": cellID,
-            "keyID": keyID,
-            "rowID": rowID,
-            "value": {
-                [type]: {
-                    "content": x
-                }
-            },
-        },
-        () => {
-            MessagePlugin.success("设置成功")
-        }
-    );
-}
-
-
-function handleDateChange(_, { dayjsValue }) {
-    // 转换为时间戳
-    if (type === "date") {
-        if (value.hasEndDate) {
-            value.content = dayjsValue[0].unix() * 1000
-            value.content2 = dayjsValue[1].unix() * 1000
-        } else {
-            value.content = dayjsValue.unix() * 1000
-        }
-    }
-
-    fetchPost(
-        "/api/av/setAttributeViewBlockAttr",
-        {
-            "avID": props.avID,
-            "cellID": cellID,
-            "keyID": keyID,
-            "rowID": rowID,
-            "value": value
-        },
-        () => {
-            MessagePlugin.success("设置成功")
-        }
-    );
-}
-
 </script>

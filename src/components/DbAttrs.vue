@@ -1,8 +1,8 @@
 <template>
     <t-card :bordered="false">
         <template v-if="avID">
-            <template v-for="(item, index) in targetTable.fields" :key="item.cellID">
-                <DbRow :avID="avID" :fieldIndex="Number(index)" />
+        <template v-for="field in targetTable.fields" :key="field.keyID">
+                <DbRow :avID="avID" :fieldKeyID="field.keyID" />
             </template>
 
             <!-- <AttributeRowAdd /> -->
@@ -18,6 +18,7 @@
 <script setup lang="ts">
 import { useAttributesStore } from '@/store/attribute';
 import DbRow from './DbRow.vue';
+import { computed } from 'vue';
 
 const props = defineProps({
     avID: {
@@ -29,7 +30,7 @@ const props = defineProps({
 // 通过数据库id，渲染对应的属性面板
 const attributeStore = useAttributesStore();
 
-const targetTable = attributeStore.dataBaseAttributes[props.avID]
+const targetTable = computed(() => attributeStore.dataBaseAttributes[props.avID]);
 </script>
 
 
@@ -53,3 +54,4 @@ const targetTable = attributeStore.dataBaseAttributes[props.avID]
     margin-bottom: 4px;
 }
 </style>
+import { computed } from 'vue';

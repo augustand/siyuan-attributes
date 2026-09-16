@@ -1,10 +1,13 @@
 import { defineStore } from "pinia";
-import { fetchPost } from "siyuan";
-import type { IWebSocketData } from "siyuan";
 import { inject, reactive, ref } from "vue";
 import { displayRule, useConfigStore } from "./rules";
 import { normalizeCustomAttributeKey } from "@/services/attributeKeys";
 import { fetchBlockAttrs, writeBlockAttrs } from "@/services/blockAttrs";
+import {
+  fetchAttributeViews,
+  writeDatabaseCell as writeDatabaseCellApi,
+} from "@/services/attributeViews";
+import type { DatabaseField, DatabasePanel } from "@/models/attributeView";
 
 const pluginKey = "mux-siyuan-plugin-attributes-panel";
 
@@ -12,8 +15,6 @@ export interface innerAttribute extends displayRule {
   key: string;
   value: string;
 }
-
-// TODO: Database Data Type
 
 export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
   // Data Flow Model
@@ -25,9 +26,12 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
   // --- Attributes Data Storages ---
   const documentId = ref(inject<string>("$docId", ""));
   const builtInAttributes = ref([] as Array<innerAttribute>); // 内置数据库属性
-  const dataBaseAttributes = reactive<Record<string, any>>({}); // 当前文档所有数据库属性
+  const dataBaseAttributes = reactive<Record<string, DatabasePanel>>({});
   const pageBlockAttributes = reactive({}); // 当前块属性
   const isSaving = ref(false);
+  const isLoadingDatabaseAttributes = ref(false);
+  const isSavingDatabaseAttributes = ref(false);
+  let databaseLoadToken = 0;
 
   async function loadDocumentAttributes(): Promise<void> {
     const attrs = await fetchBlockAttrs(documentId.value);
@@ -64,86 +68,52 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
 
     if ("custom-avs" in attrs) {
       await loadDatabaseAttributes();
+    } else {
+      replaceDatabasePanels([]);
     }
   }
 
   async function loadDatabaseAttributes(): Promise<void> {
-    await new Promise<void>((resolve, reject) => {
-      fetchPost(
-      "/api/av/getAttributeViewKeys",
-      {
-        id: documentId.value,
-      },
-      (response: IWebSocketData) => {
-        if (response.code !== 0) {
-          reject(new Error(response.msg || "Failed to load database attributes"));
-          return;
-        }
+    if (!documentId.value) return;
 
-        const data = response.data;
-        if (!data || data.length === 0) {
-          resolve();
-          return;
-        }
+    const token = ++databaseLoadToken;
+    isLoadingDatabaseAttributes.value = true;
+    try {
+      const panels = await fetchAttributeViews(documentId.value);
+      if (token !== databaseLoadToken) return;
 
-        for (const av of data) {
-          // 遍历所有的数据库，转换为关注的数据格式
-
-          const database = { ...av, fields: [] };
-          delete database.keyValues;
-
-          database.fields = av.keyValues.flatMap(({ key, values }) => {
-            // TODO: Convert Attributes by rules and orders via dragging
-            // 跳过主键
-            if (key.type === "block") {
-              return [];
-            }
-            const value = values[0];
-
-            let cellValue = value[value.type];
-            if (value.type === "select") {
-              cellValue = value.mSelect;
-            }
-
-            if (value.type === "select" || value.type === "mSelect") {
-              // change every cellValue {content: "aaa", color: "1"} -> index
-              // 暂时屏蔽name和content的区别，暂时屏蔽对象，注意如果以后content不唯一，这里绝对会出问题
-              if (cellValue instanceof Array) {
-                cellValue = {
-                  content: cellValue.map((v) => {
-                    return key.options.findIndex(
-                      (option) => option.name === v.content
-                    );
-                  }),
-                };
-              } else {
-                cellValue = [];
-              }
-            }
-
-            return [
-              {
-                name: key.name,
-                cellID: value.id,
-                keyID: value.keyID,
-                rowID: value.blockID,
-                type: value.type,
-                value: cellValue,
-                options: key.options,
-              },
-            ];
-          });
-
-          dataBaseAttributes[av.avID] = database;
-        }
-        resolve();
-      },
-      undefined,
-      () => {
-        reject(new Error("Failed to load database attributes"));
+      replaceDatabasePanels(panels);
+    } finally {
+      if (token === databaseLoadToken) {
+        isLoadingDatabaseAttributes.value = false;
       }
-      );
-    });
+    }
+  }
+
+  function replaceDatabasePanels(panels: DatabasePanel[]): void {
+    const nextIDs = new Set(panels.map((panel) => panel.avID));
+    for (const avID of Object.keys(dataBaseAttributes)) {
+      if (!nextIDs.has(avID)) delete dataBaseAttributes[avID];
+    }
+    for (const panel of panels) {
+      dataBaseAttributes[panel.avID] = panel;
+    }
+  }
+
+  async function writeDatabaseCell(input: {
+    avID: string;
+    field: DatabaseField;
+  }): Promise<void> {
+    isSavingDatabaseAttributes.value = true;
+    try {
+      await writeDatabaseCellApi({
+        avID: input.avID,
+        field: input.field,
+      });
+      await loadDocumentAttributes();
+    } finally {
+      isSavingDatabaseAttributes.value = false;
+    }
   }
 
   function assertCustomKey(key: string): void {
@@ -211,8 +181,11 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
     dataBaseAttributes,
     pageBlockAttributes, // Inner States
     isSaving,
+    isLoadingDatabaseAttributes,
+    isSavingDatabaseAttributes,
     loadDocumentAttributes,
     loadDatabaseAttributes,
+    writeDatabaseCell,
     createCustomAttribute,
     setAttribute,
     deleteCustomAttribute,

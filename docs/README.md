@@ -1,6 +1,6 @@
 ## 属性面板<sup>SiYuan-Attributes-Panel</sup>
 
-注意：数据库面板目前主要用于展示。数据库中的单选、多选和日期编辑仍在开发中；为避免数据类型混乱，这些字段当前保持只读。
+注意：数据库面板已支持展示和刷新。数据库中的文本、网址、数字、复选框可以直接编辑；单选、多选和日期编辑仍在开发中，为避免数据类型混乱，这些字段当前保持只读。
 
 ### 即将推出的功能...
 
@@ -17,8 +17,10 @@
 通过这个插件可以实现：
 
 1. 在文档下面显示一个属性面板，展示**文档级**自定义属性；自定义属性支持新增、修改、删除和刷新，新增时只需输入名称，保存前会自动补 `custom-` 前缀
-2. 支持暗黑模式
-3. 设置面板和块级属性面板尚未实现
+2. 展示文档关联的数据库字段；外部修改数据库后会自动刷新面板
+3. 数据库中的文本、网址、数字、复选框支持编辑
+4. 支持暗黑模式
+5. 设置面板和块级属性面板尚未实现
 
 ### 为什么开发这个插件
 
@@ -45,8 +47,9 @@
 1. `/api/attr/getBlockAttrs`：用于获取已有属性
 2. `/api/attr/setBlockAttrs`：用于设置属性
 3. `/api/av/getAttributeViewKeys`：读取文档关联数据库字段
-4. `/api/av/setAttributeViewBlockAttr`：预留给数据库字段写回（当前相关 UI 只读）
-5. `EventBus`监听：`loaded-protyle-static`，即页面打开操作，以在适当的时机插入属性面板
+4. `/api/av/setAttributeViewBlockAttr`：保存支持的数据库字段
+5. `EventBus`监听：`loaded-protyle-static`、`loaded-protyle-dynamic`、`switch-protyle`，用于插入和刷新属性面板
+6. `EventBus`监听：`ws-main`，接收思源广播的 `refreshAttributeView` 事件后防抖刷新
 
 #### 插件权限
 
