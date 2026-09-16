@@ -1,7 +1,7 @@
 <template>
     <t-card :bordered="false">
-        <template v-if="avID">
-        <template v-for="field in targetTable.fields" :key="field.keyID">
+        <template v-if="targetTable">
+        <template v-for="field in settingsStore.applyDatabaseRules(targetTable.fields)" :key="field.keyID">
                 <DbRow :avID="avID" :fieldKeyID="field.keyID" />
             </template>
 
@@ -19,6 +19,7 @@
 import { useAttributesStore } from '@/store/attribute';
 import DbRow from './DbRow.vue';
 import { computed } from 'vue';
+import { useConfigStore } from '@/store/rules';
 
 const props = defineProps({
     avID: {
@@ -29,6 +30,7 @@ const props = defineProps({
 
 // 通过数据库id，渲染对应的属性面板
 const attributeStore = useAttributesStore();
+const settingsStore = useConfigStore();
 
 const targetTable = computed(() => attributeStore.dataBaseAttributes[props.avID]);
 </script>

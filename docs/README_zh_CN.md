@@ -12,15 +12,14 @@
 
 ### 插件功能
 
-目前没有任何设置项，开箱即用
-
 通过这个插件可以实现：
 
 1. 在文档下面显示一个属性面板，展示**文档级**自定义属性；自定义属性支持新增、修改、删除和刷新，新增时只需输入名称，保存前会自动补 `custom-` 前缀
 2. 展示文档关联的数据库字段；外部修改数据库后会自动刷新面板
 3. 数据库中的文本、网址、数字、复选框支持编辑
-4. 支持暗黑模式
-5. 设置面板和块级属性面板尚未实现
+4. 提供设置面板，可配置面板可见性、属性显示名、显示/隐藏、可编辑性和排序
+5. 支持暗黑模式
+6. 块级属性面板尚未实现
 
 ### 为什么开发这个插件
 
@@ -44,12 +43,14 @@
 
 本插件依赖的API有且仅有：
 
-1. `/api/attr/getBlockAttrs`：用于获取已有属性
-2. `/api/attr/setBlockAttrs`：用于设置属性
-3. `/api/av/getAttributeViewKeys`：读取文档关联数据库字段
-4. `/api/av/setAttributeViewBlockAttr`：保存支持的数据库字段
-5. `EventBus`监听：`loaded-protyle-static`、`loaded-protyle-dynamic`、`switch-protyle`，用于插入和刷新属性面板
-6. `EventBus`监听：`ws-main`，接收思源广播的 `refreshAttributeView` 事件后防抖刷新
+1. `plugin.loadData` / `plugin.saveData`：保存版本化设置
+2. `/api/attr/getBlockAttrs`：用于获取已有属性
+3. `/api/attr/setBlockAttrs`：用于设置属性
+4. `/api/av/getAttributeViewKeys`：读取文档关联数据库字段
+5. `/api/av/setAttributeViewBlockAttr`：保存支持的数据库字段
+6. `EventBus`监听：`loaded-protyle-static`，用于插入属性面板
+7. `EventBus`监听：`loaded-protyle-dynamic`、`switch-protyle`，用于刷新属性面板
+8. `EventBus`监听：`ws-main`，接收思源广播事件后防抖刷新
 
 #### 插件权限
 

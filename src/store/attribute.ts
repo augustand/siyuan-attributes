@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { inject, reactive, ref } from "vue";
-import { displayRule, useConfigStore } from "./rules";
+import { useConfigStore } from "./rules";
 import { normalizeCustomAttributeKey } from "@/services/attributeKeys";
 import { fetchBlockAttrs, writeBlockAttrs } from "@/services/blockAttrs";
 import {
@@ -11,9 +11,15 @@ import type { DatabaseField, DatabasePanel } from "@/models/attributeView";
 
 const pluginKey = "mux-siyuan-plugin-attributes-panel";
 
-export interface innerAttribute extends displayRule {
+export interface innerAttribute {
   key: string;
   value: string;
+  name: string;
+  displayAs: string;
+  editable: boolean;
+  renderMethod?: string;
+  order: number;
+  icon?: string;
 }
 
 export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
@@ -43,27 +49,30 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
 
       if (rule) {
         next.push({
-          ...rule,
           key: attributeName,
           value: attributeValue,
+          name: rule.name,
+          displayAs: rule.displayAs || attributeName,
+          editable: rule.editable,
+          renderMethod: rule.renderMethod,
+          order: rule.order,
+          icon: rule.icon,
         });
-      } else {
+      } else if (attributeName.startsWith("custom-")) {
         next.push({
           key: attributeName,
           value: attributeValue,
           name: attributeName,
           displayAs: attributeName.replace(/^custom-/, ""),
-          rule: attributeName,
-          renderMethod: "input",
-          matchMethod: "精确",
           editable: true,
-          display: true,
+          renderMethod: "input",
+          order: 1000,
         });
       }
     }
 
     builtInAttributes.value = next.sort((left, right) => {
-      return (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER);
+      return left.order - right.order;
     });
 
     if ("custom-avs" in attrs) {
@@ -194,28 +203,5 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
 
 function matchRules(attributeName: string) {
   const configStore = useConfigStore();
-  const rules = configStore.rules;
-
-  return rules.find((rule) => {
-    if (rule.matchMethod === "精确" && rule.rule === attributeName) {
-      return true;
-    }
-
-    if (rule.matchMethod === "通配符" && matchWild(attributeName, rule.rule)) {
-      return true;
-    }
-
-    if (rule.matchMethod === "正则" && matchRegex(attributeName, rule.rule)) {
-      return true;
-    }
-  });
-}
-
-function matchRegex(_attributeName: string, _rule: string) {
-  return false;
-}
-
-function matchWild(_attributeName: string, _rule: string) {
-  // Wanna imporve this? goto Leetcode #44
-  return false;
+  return configStore.matchDocumentRule(attributeName);
 }

@@ -1,6 +1,6 @@
 <template>
     <div class="attribute-panel">
-        <template v-if="Object.keys(attributeStore.dataBaseAttributes).length === 0">
+        <template v-if="settingsStore.settings.showDocumentPanel && Object.keys(attributeStore.dataBaseAttributes).length === 0">
             <!-- 只有内置的话就只显示内置的 -->
             <BuiltInAttrs />
         </template>
@@ -15,7 +15,7 @@
                     </KeepAlive>
                 </t-tab-panel>
 
-                <template v-for="(av, avID) in attributeStore.dataBaseAttributes" :key="avID">
+                <template v-for="(av, avID) in settingsStore.settings.showDatabasePanel ? attributeStore.dataBaseAttributes : {}" :key="avID">
                     <t-tab-panel :value="avID">
                         <template #label> <t-icon name="data-base" class="tabs-icon-margin" /> {{ av.avName || avID }}
                         </template>
@@ -32,9 +32,11 @@
 
 <script setup lang="ts">
 import { useAttributesStore } from '@/store/attribute';
+import { useConfigStore } from '@/store/rules';
 
 // 通过文档id，渲染对应的属性面板
 const attributeStore = useAttributesStore();
+const settingsStore = useConfigStore();
 </script>
 
 <style scoped>

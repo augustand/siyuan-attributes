@@ -1,13 +1,12 @@
 <template>
     <t-layout style="height: 100%;">
-        <t-aside v-if="true">
-            <t-menu theme="light" value="dashboard" style="margin-right: 50px" height="550px">
-                <t-menu-item value="dashboard">
+        <t-aside>
+            <t-menu theme="light" value="settings" style="margin-right: 8px">
+                <t-menu-item value="settings">
                     <template #icon>
-                        <t-icon name="dashboard" />
+                        <t-icon name="setting" />
                     </template>
-                    属性面板
-                    <t-tag theme="success" variant="outline">latest v1.1.0</t-tag>
+                    {{ labels.panel }}
                 </t-menu-item>
             </t-menu>
         </t-aside>
@@ -23,11 +22,22 @@
 </template>
 
 <script setup lang="ts">
+import { inject } from 'vue';
+import type { Plugin } from 'siyuan';
 import SettingContent from './SettingContent.vue';
+import { setI18n } from '@/services/i18n';
+import { getI18nText } from '@/services/i18n';
+
+const plugin = inject<Plugin>('$plugin');
+setI18n(plugin?.i18n as Record<string, unknown> | undefined);
+
+const labels = {
+    panel: getI18nText('settings.title', '属性面板设置'),
+};
 </script>
 
 <style scoped>
 .layout {
-    padding: var(--td-comp-paddingTB-xl) var(--td-comp-paddingLR-xl);
+    padding: 16px;
 }
 </style>

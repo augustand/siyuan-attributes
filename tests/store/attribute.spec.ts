@@ -25,7 +25,14 @@ vi.mock("@/services/attributeViews", () => ({
 }));
 
 vi.mock("@/store/rules", () => ({
-  useConfigStore: () => ({ rules: [] }),
+  useConfigStore: () => ({
+    matchDocumentRule: (name: string) => name === "custom-x"
+      ? {
+          id: "test-x", name: "X", rule: name, matchMethod: "exact", scope: "document",
+          display: true, displayAs: "X", editable: true, order: 1000,
+        }
+      : undefined,
+  }),
 }));
 
 describe("attributes store CRUD", () => {

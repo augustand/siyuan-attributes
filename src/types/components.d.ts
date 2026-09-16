@@ -32,6 +32,7 @@ declare module 'vue' {
     TInput: typeof import('tdesign-vue-next')['Input']
     TInputNumber: typeof import('tdesign-vue-next')['InputNumber']
     TLayout: typeof import('tdesign-vue-next')['Layout']
+    TLoading: typeof import('tdesign-vue-next')['Loading']
     TMenu: typeof import('tdesign-vue-next')['Menu']
     TMenuItem: typeof import('tdesign-vue-next')['MenuItem']
     TOption: typeof import('tdesign-vue-next')['Option']
@@ -39,7 +40,6 @@ declare module 'vue' {
     TSelect: typeof import('tdesign-vue-next')['Select']
     TTabPanel: typeof import('tdesign-vue-next')['TabPanel']
     TTabs: typeof import('tdesign-vue-next')['Tabs']
-    TTag: typeof import('tdesign-vue-next')['Tag']
   }
 }
 
@@ -65,6 +65,7 @@ declare global {
   const TInput: typeof import('tdesign-vue-next')['Input']
   const TInputNumber: typeof import('tdesign-vue-next')['InputNumber']
   const TLayout: typeof import('tdesign-vue-next')['Layout']
+  const TLoading: typeof import('tdesign-vue-next')['Loading']
   const TMenu: typeof import('tdesign-vue-next')['Menu']
   const TMenuItem: typeof import('tdesign-vue-next')['MenuItem']
   const TOption: typeof import('tdesign-vue-next')['Option']
@@ -72,5 +73,4 @@ declare global {
   const TSelect: typeof import('tdesign-vue-next')['Select']
   const TTabPanel: typeof import('tdesign-vue-next')['TabPanel']
   const TTabs: typeof import('tdesign-vue-next')['Tabs']
-  const TTag: typeof import('tdesign-vue-next')['Tag']
 }
