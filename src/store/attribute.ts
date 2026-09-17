@@ -33,6 +33,7 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
   // --- Attributes Data Storages ---
   const documentId = ref(inject<string>("$docId", ""));
   const builtInAttributes = ref([] as Array<innerAttribute>); // 内置数据库属性
+  const allDocumentAttributes = ref([] as Array<innerAttribute>);
   const dataBaseAttributes = reactive<Record<string, DatabasePanel>>({});
   const pageBlockAttributes = reactive({}); // 当前块属性
   const isSaving = ref(false);
@@ -46,7 +47,7 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
 
     for (const [attributeName, attributeValue] of Object.entries(attrs)) {
       const rule = matchRules(attributeName);
-      if (rule && !rule.display) continue;
+      const hidden = Boolean(rule && !rule.display);
 
       if (rule) {
         next.push({
@@ -54,7 +55,7 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
           value: attributeValue,
           name: rule.name,
           displayAs: rule.displayAs || attributeName,
-          editable: rule.editable && !isReadOnlyDocumentAttributeName(attributeName),
+          editable: rule.editable && !hidden && !isReadOnlyDocumentAttributeName(attributeName),
           renderMethod: rule.renderMethod,
           order: rule.order,
           icon: rule.icon,
@@ -72,8 +73,13 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
       }
     }
 
-    builtInAttributes.value = next.sort((left, right) => {
+    allDocumentAttributes.value = next.sort((left, right) => {
       return left.order - right.order;
+    });
+
+    builtInAttributes.value = allDocumentAttributes.value.filter((attribute) => {
+      const rule = matchRules(attribute.key);
+      return !rule || rule.display;
     });
 
     if ("custom-avs" in attrs) {
@@ -192,6 +198,7 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
   return {
     documentId,
     builtInAttributes,
+    allDocumentAttributes,
     dataBaseAttributes,
     pageBlockAttributes, // Inner States
     isSaving,

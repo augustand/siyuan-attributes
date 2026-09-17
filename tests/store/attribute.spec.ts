@@ -31,6 +31,11 @@ vi.mock("@/store/rules", () => ({
           id: "test-x", name: "X", rule: name, matchMethod: "exact", scope: "document",
           display: true, displayAs: "X", editable: true, order: 1000,
         }
+      : name === "custom-hidden"
+      ? {
+          id: "test-hidden", name: "Hidden", rule: name, matchMethod: "exact", scope: "document",
+          display: false, displayAs: "Hidden", editable: true, order: 1000,
+        }
       : undefined,
   }),
 }));
@@ -93,6 +98,20 @@ describe("attributes store CRUD", () => {
     await store.loadDocumentAttributes();
 
     expect(store.builtInAttributes.filter((item) => item.key === "custom-x")).toHaveLength(1);
+  });
+
+  it("keeps hidden document attributes available to field settings", async () => {
+    fetchBlockAttrs.mockResolvedValue({
+      id: "doc",
+      "custom-visible": "visible",
+      "custom-hidden": "hidden",
+    });
+    const store = initializeStore();
+    // Pretend the settings store has a hidden rule for custom-hidden.
+    await store.loadDocumentAttributes();
+
+    expect(store.allDocumentAttributes.map((item) => item.key)).toContain("custom-hidden");
+    expect(store.builtInAttributes.map((item) => item.key)).not.toContain("custom-hidden");
   });
 
   it("adds a valid custom attribute and refreshes", async () => {

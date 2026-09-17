@@ -27,6 +27,7 @@
                                     <div class="field-title">
                                         <span class="field-name">{{ item.attr.displayAs || item.key }}</span>
                                         <span class="source-badge">文档</span>
+                                        <span v-if="!item.rule.display" class="hidden-badge">{{ labels.hidden }}</span>
                                     </div>
                                     <code class="field-key">{{ item.key }}</code>
                                     <p v-if="item.attr.value" class="field-preview">{{ item.attr.value }}</p>
@@ -82,6 +83,7 @@
                                     <div class="field-title">
                                         <span class="field-name">{{ item.field.name }}</span>
                                         <span class="source-badge">{{ typeLabel(item.field.type) }}</span>
+                                        <span v-if="!item.rule.display" class="hidden-badge">{{ labels.hidden }}</span>
                                     </div>
                                     <code class="field-key">{{ item.field.keyID }}</code>
                                     <p class="field-preview">{{ describeDatabaseValue(item.field) }}</p>
@@ -200,6 +202,7 @@ const labels = {
     order: getI18nText('settings.order', '排序值'),
     editable: getI18nText('settings.editable', '可编辑'),
     readonlyCapability: getI18nText('settings.readOnlyCapability', '该字段由思源管理，值不可通过面板修改；显示名仅是插件内别名。'),
+    hidden: getI18nText('settings.hidden', '已隐藏'),
     fieldTypeReadonly: getI18nText('fieldSettings.fieldTypeReadonly', '该数据库字段类型当前不支持编辑。'),
     saveSuccess: getI18nText('fieldSettings.saveSuccess', '字段设置已保存'),
     saveFailed: getI18nText('fieldSettings.saveFailed', '保存字段设置失败'),
@@ -270,7 +273,7 @@ function buildDocumentDraft(item: {
         scope: 'document',
         display: base ? base.display : true,
         displayAs: base?.displayAs || item.displayAs || item.key,
-        editable: item.editable && (base?.editable ?? true),
+        editable: !isReadOnlyDocumentAttributeName(item.key) && (base?.editable ?? true),
         order: base?.order ?? item.order,
         icon: base?.icon || item.icon,
         system: Boolean(base?.system && exact),
@@ -303,7 +306,7 @@ function isDocumentKeyReadonly(key: string): boolean {
 }
 
 function loadDrafts(): void {
-    documentDrafts.value = attributeStore.builtInAttributes.map((attribute) => ({
+  documentDrafts.value = attributeStore.allDocumentAttributes.map((attribute) => ({
         key: attribute.key,
         attr: {
             key: attribute.key,
@@ -471,6 +474,14 @@ onMounted(async () => {
     border-radius: var(--td-radius-small);
     background: var(--td-brand-color-light);
     color: var(--td-brand-color);
+    font-size: 12px;
+}
+
+.hidden-badge {
+    padding: 1px 6px;
+    border-radius: var(--td-radius-small);
+    background: var(--td-warning-color);
+    color: var(--td-text-color-anti);
     font-size: 12px;
 }
 

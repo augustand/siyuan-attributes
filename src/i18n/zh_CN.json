@@ -41,6 +41,7 @@
         "order": "排序值",
         "display": "显示",
         "editable": "可编辑",
+        "hidden": "已隐藏",
         "readOnlyCapability": "该字段由思源管理，值不可通过面板修改；显示名仅是插件内别名。",
         "reset": "恢复默认",
         "save": "保存设置",
