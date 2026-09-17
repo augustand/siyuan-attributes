@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  normalizeDatabaseFieldRules,
   compareDisplayRules,
   DEFAULT_PANEL_SETTINGS,
   matchDisplayRule,
@@ -10,6 +11,30 @@ import {
 describe("normalizePanelSettings", () => {
   it("returns defaults for invalid input", () => {
     expect(normalizePanelSettings(undefined)).toEqual(DEFAULT_PANEL_SETTINGS);
+  });
+
+  it("normalizes exact database field rules", () => {
+    const settings = normalizePanelSettings({
+      version: 1,
+      fieldRules: [{
+        databaseId: "av-1",
+        fieldId: "field-1",
+        display: true,
+        displayAs: "Due date",
+        editable: true,
+        order: 5,
+      }],
+    });
+
+    expect(settings.fieldRules).toEqual([{
+      id: "field:av-1:field-1",
+      databaseId: "av-1",
+      fieldId: "field-1",
+      display: true,
+      displayAs: "Due date",
+      editable: true,
+      order: 5,
+    }]);
   });
 
   it("locks immutable document keys even when persisted input is editable", () => {
@@ -148,5 +173,23 @@ describe("compareDisplayRules", () => {
       { ...DEFAULT_PANEL_SETTINGS.rules[0], id: "c", order: 0 },
     ];
     expect([...rules].sort(compareDisplayRules).map((rule) => rule.id)).toEqual(["c", "a", "b"]);
+  });
+});
+
+describe("normalizeDatabaseFieldRules", () => {
+  it("filters incomplete database bindings", () => {
+    expect(normalizeDatabaseFieldRules([
+      { databaseId: "av-1" },
+      { fieldId: "field-1" },
+      { databaseId: "av-1", fieldId: "field-1", display: true },
+    ])).toEqual([{
+      id: "field:av-1:field-1",
+      databaseId: "av-1",
+      fieldId: "field-1",
+      display: true,
+      displayAs: "field-1",
+      editable: true,
+      order: 1000,
+    }]);
   });
 });

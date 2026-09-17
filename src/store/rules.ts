@@ -8,7 +8,12 @@ import {
   normalizeDisplayRule,
   normalizePanelSettings,
 } from "@/models/settings";
-import type { DisplayRule, PanelSettings } from "@/models/settings";
+import type {
+  DatabaseFieldRule,
+  DisplayRule,
+  PanelSettings,
+} from "@/models/settings";
+import { normalizeDatabaseFieldRules } from "@/models/settings";
 import {
   loadPanelSettings,
   resetPanelSettings,
@@ -139,8 +144,27 @@ export const useConfigStore = defineStore(pluginKey + "settings", () => {
     return findDocumentRule(name);
   }
 
-  function applyDatabaseRules(fields: DatabaseField[]): DatabaseField[] {
+  function applyDatabaseRules(
+    fields: DatabaseField[],
+    databaseId?: string,
+  ): Array<DatabaseField & { order: number }> {
     const fieldsWithRules = fields.flatMap((field) => {
+      const boundFieldRule = settings.value.fieldRules.find((rule) => (
+        (!databaseId || rule.databaseId === databaseId)
+        && rule.fieldId === field.keyID
+      ));
+      if (boundFieldRule) {
+        if (!boundFieldRule.display) return [];
+
+        return [{
+          ...field,
+          name: boundFieldRule.displayAs || field.name,
+          editable: field.editable && boundFieldRule.editable,
+          icon: boundFieldRule.icon || field.icon,
+          order: boundFieldRule.order,
+        }];
+      }
+
       const rule = findDatabaseRule(field);
       if (!rule || !rule.display) return [];
 
@@ -160,6 +184,40 @@ export const useConfigStore = defineStore(pluginKey + "settings", () => {
     return [...settings.value.rules].sort(compareDisplayRules);
   }
 
+  async function upsertDocumentFieldRules(rules: DisplayRule[]): Promise<void> {
+    let nextRules = [...settings.value.rules];
+
+    for (const input of rules) {
+      const candidate = normalizeDisplayRule({
+        ...input,
+        matchMethod: "exact",
+        scope: "document",
+      });
+      if (!candidate) continue;
+
+      const existingIndex = nextRules.findIndex((rule) => (
+        rule.id === candidate.id
+        || (rule.matchMethod === "exact"
+          && rule.scope !== "database"
+          && rule.rule === candidate.rule)
+      ));
+      nextRules = existingIndex >= 0
+        ? nextRules.map((rule, index) => index === existingIndex ? candidate : rule)
+        : [...nextRules, candidate];
+    }
+
+    settings.value = { ...settings.value, rules: nextRules };
+    await persist();
+  }
+
+  async function setDatabaseFieldRules(rules: DatabaseFieldRule[]): Promise<void> {
+    settings.value = {
+      ...settings.value,
+      fieldRules: normalizeDatabaseFieldRules(rules),
+    };
+    await persist();
+  }
+
   return {
     settings,
     isReady,
@@ -174,5 +232,7 @@ export const useConfigStore = defineStore(pluginKey + "settings", () => {
     matchDocumentRule,
     applyDatabaseRules,
     documentRules,
+    upsertDocumentFieldRules,
+    setDatabaseFieldRules,
   };
 });

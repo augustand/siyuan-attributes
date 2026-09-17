@@ -22,6 +22,18 @@ export interface PanelSettings {
   showDocumentPanel: boolean;
   showDatabasePanel: boolean;
   rules: DisplayRule[];
+  fieldRules: DatabaseFieldRule[];
+}
+
+export interface DatabaseFieldRule {
+  id: string;
+  databaseId: string;
+  fieldId: string;
+  display: boolean;
+  displayAs: string;
+  editable: boolean;
+  order: number;
+  icon?: string;
 }
 
 export const READ_ONLY_DOCUMENT_ATTRIBUTE_KEYS = new Set([
@@ -72,6 +84,43 @@ function normalizeMatchMethod(value: unknown): DisplayMatchMethod {
 
 function normalizeScope(value: unknown): DisplayRuleScope {
   return value === "document" || value === "database" || value === "all" ? value : "all";
+}
+
+function normalizeDatabaseFieldRule(input: unknown): DatabaseFieldRule | undefined {
+  if (typeof input !== "object" || input === null) return undefined;
+  const source = input as Record<string, unknown>;
+  const databaseId = string(source.databaseId, "");
+  const fieldId = string(source.fieldId, "");
+  if (!databaseId || !fieldId) return undefined;
+
+  return {
+    id: string(source.id, `field:${databaseId}:${fieldId}`),
+    databaseId,
+    fieldId,
+    display: bool(source.display, false),
+    displayAs: string(source.displayAs, fieldId),
+    editable: bool(source.editable, true),
+    order: number(source.order, 1000),
+    icon: typeof source.icon === "string" ? source.icon : undefined,
+  };
+}
+
+export function normalizeDatabaseFieldRules(input: unknown): DatabaseFieldRule[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map(normalizeDatabaseFieldRule)
+    .filter((rule): rule is DatabaseFieldRule => Boolean(rule));
+}
+
+export function findExactDisplayRule(
+  rules: DisplayRule[],
+  attributeKey: string,
+): DisplayRule | undefined {
+  return rules.find((rule) => (
+    rule.scope !== "database"
+    && rule.matchMethod === "exact"
+    && rule.rule === attributeKey
+  ));
 }
 
 export const DEFAULT_PANEL_SETTINGS: PanelSettings = {
@@ -125,6 +174,7 @@ export const DEFAULT_PANEL_SETTINGS: PanelSettings = {
       display: false, displayAs: "关联数据库", editable: false, order: 1000, system: true,
     },
   ],
+  fieldRules: [],
 };
 
 export function normalizeDisplayRule(input: unknown): DisplayRule | undefined {
@@ -188,6 +238,7 @@ export function normalizePanelSettings(input: unknown): PanelSettings {
     showDocumentPanel: bool(source.showDocumentPanel, true),
     showDatabasePanel: bool(source.showDatabasePanel, true),
     rules,
+    fieldRules: normalizeDatabaseFieldRules(source.fieldRules),
   };
 }
 
@@ -220,6 +271,7 @@ export function normalizeLegacySettings(input: {
     showDocumentPanel: bool(legacyConfigurations.show, true),
     showDatabasePanel: bool(legacyShowSettings.page, true),
     rules: migrated,
+    fieldRules: [],
   };
 }
 

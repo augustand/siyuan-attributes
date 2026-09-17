@@ -1,7 +1,7 @@
 <template>
     <t-card :bordered="false">
         <template v-if="targetTable">
-        <template v-for="field in settingsStore.applyDatabaseRules(targetTable.fields)" :key="field.keyID">
+        <template v-for="field in settingsStore.applyDatabaseRules(targetTable.fields, avID)" :key="field.keyID">
                 <DbRow :avID="avID" :fieldKeyID="field.keyID" />
             </template>
 

@@ -52,6 +52,19 @@
         "resetFailed": "恢复默认设置失败"
     },
     "loading": "加载中...",
+    "fieldSettings": {
+        "panelTitle": "属性面板",
+        "open": "字段设置",
+        "title": "当前字段设置",
+        "subtitle": "直接配置当前文档和关联数据库中的字段",
+        "documentFields": "文档属性",
+        "noDocumentFields": "暂无文档属性",
+        "unnamedDatabase": "未命名数据库",
+        "noDatabaseFields": "暂无数据库字段",
+        "fieldTypeReadonly": "该数据库字段类型当前不支持编辑。",
+        "saveSuccess": "字段设置已保存",
+        "saveFailed": "保存字段设置失败"
+    },
     "attributes": {
         "add": "添加属性",
         "keyPlaceholder": "名称",

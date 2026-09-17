@@ -52,6 +52,19 @@
         "resetFailed": "Failed to restore defaults"
     },
     "loading": "Loading...",
+    "fieldSettings": {
+        "panelTitle": "Attribute panel",
+        "open": "Field settings",
+        "title": "Current field settings",
+        "subtitle": "Configure fields in this document and linked databases",
+        "documentFields": "Document attributes",
+        "noDocumentFields": "No document attributes",
+        "unnamedDatabase": "Untitled database",
+        "noDatabaseFields": "No database fields",
+        "fieldTypeReadonly": "This database field type is not editable yet.",
+        "saveSuccess": "Field settings saved",
+        "saveFailed": "Failed to save field settings"
+    },
     "attributes": {
         "add": "Add attribute",
         "keyPlaceholder": "Name",
