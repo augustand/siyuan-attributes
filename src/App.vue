@@ -7,7 +7,7 @@ import { onMounted } from 'vue';
 import { onUnmounted } from 'vue';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { inject } from 'vue';
-import type { EventBus, IProtyle, IWebSocketData, Plugin } from 'siyuan';
+import type { EventBus, IProtyle, Plugin } from 'siyuan';
 import { useAttributesStore } from './store/attribute';
 import { useConfigStore } from './store/rules';
 import AttributePanel from './views/AttributePanel.vue';
@@ -37,10 +37,6 @@ function scheduleRefresh(): void {
     refreshTimer = setTimeout(refreshAttributes, 250);
 }
 
-function handleWebSocket(event: CustomEvent<IWebSocketData>): void {
-    if (event.detail?.cmd === "refreshAttributeView") scheduleRefresh();
-}
-
 function handleProtyle(_event: CustomEvent<{ protyle: IProtyle }>): void {
     scheduleRefresh();
 }
@@ -51,17 +47,14 @@ onMounted(() => {
         .catch((error) => {
             MessagePlugin.error(error instanceof Error ? error.message : "加载设置失败");
         });
-    eventBus?.on("ws-main", handleWebSocket);
     eventBus?.on("loaded-protyle-dynamic", handleProtyle);
     eventBus?.on("switch-protyle", handleProtyle);
-    // SiYuan sends refreshAttributeView to protyle sockets, not plugin ws-main sockets.
     refreshInterval = setInterval(refreshAttributes, 5000);
 });
 
 onUnmounted(() => {
     clearTimeout(refreshTimer);
     clearInterval(refreshInterval);
-    eventBus?.off("ws-main", handleWebSocket);
     eventBus?.off("loaded-protyle-dynamic", handleProtyle);
     eventBus?.off("switch-protyle", handleProtyle);
     removeSettingsChangedListener();

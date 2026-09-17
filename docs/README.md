@@ -1,10 +1,9 @@
 ## 属性面板<sup>SiYuan-Attributes-Panel</sup>
 
-注意：数据库面板已支持展示和刷新。数据库中的文本、网址、数字、复选框、日期、日期范围、单选和多选可以直接编辑；模板、关联、汇总、资源等系统/复杂字段保持只读。
+Note: The current version focuses on document attributes. Database field features have been temporarily removed.
 
 ### 即将推出的功能...
 
-- [完善数据库属性展示与同步](https://github.com/InEase/SiYuan-Attributes-Panel/issues/4)
 - [支持高度可配置的自定义设置](https://github.com/InEase/SiYuan-Attributes-Panel/issues/5)
 - [支持内联显示块级属性](https://github.com/InEase/SiYuan-Attributes-Panel/issues/7)
 
@@ -15,11 +14,9 @@
 通过这个插件可以实现：
 
 1. 在文档下面显示一个属性面板，展示**文档级**自定义属性；自定义属性支持新增、修改、删除和刷新，新增时只需输入名称，保存前会自动补 `custom-` 前缀
-2. 展示文档关联的数据库字段；外部修改数据库后会自动刷新面板
-3. 数据库中的文本、网址、数字、复选框、日期、日期范围、单选和多选支持编辑
-4. 提供设置面板，可配置面板可见性、属性显示名、显示/隐藏、可编辑性和排序
-5. 支持暗黑模式
-6. 块级属性面板尚未实现
+2. 提供设置面板，可配置属性显示名、显示/隐藏、可编辑性和排序
+3. 支持暗黑模式
+4. 块级属性面板尚未实现
 
 ### 为什么开发这个插件
 
@@ -46,11 +43,8 @@
 1. `plugin.loadData` / `plugin.saveData`：保存版本化设置
 2. `/api/attr/getBlockAttrs`：用于获取已有属性
 3. `/api/attr/setBlockAttrs`：用于设置属性
-4. `/api/av/getAttributeViewKeys`：读取文档关联数据库字段
-5. `/api/av/setAttributeViewBlockAttr`：保存支持的数据库字段
-6. `EventBus`监听：`loaded-protyle-static`，用于插入属性面板
-7. `EventBus`监听：`loaded-protyle-dynamic`、`switch-protyle`，用于刷新属性面板
-8. `EventBus`监听：`ws-main`，接收思源广播事件后防抖刷新
+4. `EventBus`监听：`loaded-protyle-static`，用于插入属性面板
+5. `EventBus`监听：`loaded-protyle-dynamic`、`switch-protyle`，用于刷新属性面板
 
 #### 插件权限
 

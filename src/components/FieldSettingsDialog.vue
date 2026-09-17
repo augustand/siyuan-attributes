@@ -54,64 +54,8 @@
                                         />
                                     </label>
                                 </div>
-                                    <p v-if="isDocumentKeyReadonly(item.key)" class="readonly-help">
-                                        {{ labels.readonlyCapability }}
-                                </p>
-                            </div>
-                        </section>
-
-                        <section
-                            v-for="database in databaseGroups"
-                            :key="database.avID"
-                            class="field-group"
-                        >
-                            <div class="group-header">
-                                <h3>{{ database.avName || labels.unnamedDatabase }}</h3>
-                                <span class="group-count">{{ database.items.length }}</span>
-                            </div>
-
-                            <div v-if="database.items.length === 0" class="empty">
-                                {{ labels.noDatabaseFields }}
-                            </div>
-
-                            <div
-                                v-for="item in database.items"
-                                :key="`${database.avID}:${item.field.keyID}`"
-                                class="field-card"
-                            >
-                                <div class="field-identity">
-                                    <div class="field-title">
-                                        <span class="field-name">{{ item.field.name }}</span>
-                                        <span class="source-badge">{{ typeLabel(item.field.type) }}</span>
-                                        <span v-if="!item.rule.display" class="hidden-badge">{{ labels.hidden }}</span>
-                                    </div>
-                                    <code class="field-key">{{ item.field.keyID }}</code>
-                                    <p class="field-preview">{{ describeDatabaseValue(item.field) }}</p>
-                                </div>
-
-                                <div class="field-controls">
-                                    <label>
-                                        <span>{{ labels.display }}</span>
-                                        <t-switch v-model="item.rule.display" />
-                                    </label>
-                                    <label>
-                                        <span>{{ labels.displayName }}</span>
-                                        <t-input v-model="item.rule.displayAs" />
-                                    </label>
-                                    <label>
-                                        <span>{{ labels.order }}</span>
-                                        <t-input-number v-model="item.rule.order" theme="column" :min="0" :max="99999" />
-                                    </label>
-                                    <label>
-                                        <span>{{ labels.editable }}</span>
-                                        <t-switch
-                                            v-model="item.rule.editable"
-                                            :disabled="!item.field.editable"
-                                        />
-                                    </label>
-                                </div>
-                                <p v-if="!item.field.editable" class="readonly-help">
-                                    {{ labels.fieldTypeReadonly }}
+                                <p v-if="isDocumentKeyReadonly(item.key)" class="readonly-help">
+                                    {{ labels.readonlyCapability }}
                                 </p>
                             </div>
                         </section>
@@ -131,25 +75,16 @@
 </template>
 
 <script setup lang="ts">
-import {
-    computed,
-    onMounted,
-    ref,
-} from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { useAttributesStore } from '@/store/attribute';
 import { useConfigStore } from '@/store/rules';
 import {
-    findExactDisplayRule,
-    normalizeDatabaseFieldRules,
-    normalizeDisplayRule,
+  findExactDisplayRule,
+  normalizeDisplayRule,
 } from '@/models/settings';
-import type {
-    DatabaseFieldRule,
-    DisplayRule,
-} from '@/models/settings';
-import type { DatabaseField } from '@/models/attributeView';
 import { isReadOnlyDocumentAttributeName } from '@/models/settings';
+import type { DisplayRule } from '@/models/settings';
 import { getI18nText } from '@/services/i18n';
 
 const emit = defineEmits<{
@@ -175,82 +110,27 @@ const documentDrafts = ref<Array<{
     rule: DisplayRule;
 }>>([]);
 
-const databaseGroups = ref<Array<{
-    avID: string;
-    avName: string;
-    items: Array<{
-        field: DatabaseField;
-        rule: DatabaseFieldRule;
-    }>;
-}>>([]);
-
-const documentItems = computed(() => documentDrafts.value);
-
 const labels = {
     title: getI18nText('fieldSettings.title', '当前字段设置'),
-    subtitle: getI18nText('fieldSettings.subtitle', '直接配置当前文档和关联数据库中的字段'),
+    subtitle: getI18nText('fieldSettings.subtitle', '配置当前文档中的属性'),
     close: getI18nText('close', '关闭'),
     loading: getI18nText('loading', '加载中...'),
     save: getI18nText('save', '保存'),
     cancel: getI18nText('cancel', '取消'),
     documentFields: getI18nText('fieldSettings.documentFields', '文档属性'),
     noDocumentFields: getI18nText('fieldSettings.noDocumentFields', '暂无文档属性'),
-    unnamedDatabase: getI18nText('fieldSettings.unnamedDatabase', '未命名数据库'),
-    noDatabaseFields: getI18nText('fieldSettings.noDatabaseFields', '暂无数据库字段'),
     display: getI18nText('settings.display', '显示'),
     displayName: getI18nText('settings.displayName', '显示名'),
     order: getI18nText('settings.order', '排序值'),
     editable: getI18nText('settings.editable', '可编辑'),
-    readonlyCapability: getI18nText('settings.readOnlyCapability', '该字段由思源管理，值不可通过面板修改；显示名仅是插件内别名。'),
     hidden: getI18nText('settings.hidden', '已隐藏'),
-    fieldTypeReadonly: getI18nText('fieldSettings.fieldTypeReadonly', '该数据库字段类型当前不支持编辑。'),
+    readonlyCapability: getI18nText('settings.readOnlyCapability', '该字段由思源管理，值不可通过面板修改；显示名仅是插件内别名。'),
     saveSuccess: getI18nText('fieldSettings.saveSuccess', '字段设置已保存'),
     saveFailed: getI18nText('fieldSettings.saveFailed', '保存字段设置失败'),
 };
 
 const canSave = computed(() => !loading.value && !saving.value);
-
-function typeLabel(type: string): string {
-    const values: Record<string, string> = {
-        text: '文本',
-        number: '数字',
-        date: '日期',
-        select: '单选',
-        mSelect: '多选',
-        url: '网址',
-        email: '邮箱',
-        phone: '电话',
-        checkbox: '复选框',
-        template: '模板',
-        relation: '关联',
-        rollup: '汇总',
-        mAsset: '资源',
-    };
-    return values[type] || type;
-}
-
-function describeDatabaseValue(field: DatabaseField): string {
-    const value = field.value;
-    if (field.type === 'checkbox') return value.checked ? '已勾选' : '未勾选';
-    if (field.type === 'select' || field.type === 'mSelect') {
-        return value.options.map((option) => option.name).join(' / ') || '空';
-    }
-    if (field.type === 'date') {
-        const parts = [value.date?.content, value.date?.content2]
-            .filter((timestamp): timestamp is number => Boolean(timestamp))
-            .map((timestamp) => new Date(timestamp).toLocaleString());
-        return parts.join(' → ') || '空';
-    }
-    if (field.type === 'number') return value.number === undefined ? '空' : String(value.number);
-    if (field.type === 'text') return value.text || '空';
-    if (field.type === 'url') return value.url || '空';
-    if (field.type === 'email') return value.email || '空';
-    if (field.type === 'phone') return value.phone || '空';
-    if (field.type === 'template') return value.template || '空';
-
-    const rendered = value.raw.renderedContent;
-    return typeof rendered === 'string' ? rendered : '—';
-}
+const documentItems = computed(() => documentDrafts.value);
 
 function buildDocumentDraft(item: {
     key: string;
@@ -280,33 +160,12 @@ function buildDocumentDraft(item: {
     });
 }
 
-function buildDatabaseDraft(
-    databaseId: string,
-    field: DatabaseField,
-): DatabaseFieldRule {
-    const exact = settingsStore.settings.fieldRules.find((rule) => (
-        rule.databaseId === databaseId && rule.fieldId === field.keyID
-    ));
-    const effective = settingsStore.applyDatabaseRules([field], databaseId)[0];
-
-    return {
-        id: exact?.id || `field:${databaseId}:${field.keyID}`,
-        databaseId,
-        fieldId: field.keyID,
-        display: Boolean(effective),
-        displayAs: effective?.name || field.name,
-        editable: field.editable && (effective?.editable ?? true),
-        order: effective?.order ?? 1000,
-        icon: effective?.icon || field.icon,
-    };
-}
-
 function isDocumentKeyReadonly(key: string): boolean {
     return isReadOnlyDocumentAttributeName(key);
 }
 
 function loadDrafts(): void {
-  documentDrafts.value = attributeStore.allDocumentAttributes.map((attribute) => ({
+    documentDrafts.value = attributeStore.allDocumentAttributes.map((attribute) => ({
         key: attribute.key,
         attr: {
             key: attribute.key,
@@ -315,15 +174,6 @@ function loadDrafts(): void {
             editable: attribute.editable,
         },
         rule: buildDocumentDraft(attribute),
-    }));
-
-    databaseGroups.value = Object.values(attributeStore.dataBaseAttributes).map((panel) => ({
-        avID: panel.avID,
-        avName: panel.avName,
-        items: panel.fields.map((field) => ({
-            field,
-            rule: buildDatabaseDraft(panel.avID, field),
-        })),
     }));
 }
 
@@ -337,13 +187,9 @@ async function save(): Promise<void> {
     status.value = '';
 
     try {
-        const databaseRules = normalizeDatabaseFieldRules(
-            databaseGroups.value.flatMap((group) => group.items.map((item) => item.rule)),
-        );
         await settingsStore.upsertDocumentFieldRules(
             documentDrafts.value.map((item) => item.rule),
         );
-        await settingsStore.setDatabaseFieldRules(databaseRules);
 
         status.value = labels.saveSuccess;
         emit('saved');
@@ -384,8 +230,8 @@ onMounted(async () => {
 .field-settings-dialog {
     display: flex;
     flex-direction: column;
-    width: min(920px, 94vw);
-    height: min(720px, 88vh);
+    width: min(840px, 94vw);
+    height: min(700px, 88vh);
     overflow: hidden;
     border-radius: var(--td-radius-medium);
     background: var(--td-bg-color-container);
@@ -421,7 +267,7 @@ onMounted(async () => {
 }
 
 .field-group {
-    margin-bottom: 24px;
+    margin-bottom: 12px;
 }
 
 .group-header {

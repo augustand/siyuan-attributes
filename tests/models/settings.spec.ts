@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  normalizeDatabaseFieldRules,
   compareDisplayRules,
   DEFAULT_PANEL_SETTINGS,
   matchDisplayRule,
@@ -13,36 +12,11 @@ describe("normalizePanelSettings", () => {
     expect(normalizePanelSettings(undefined)).toEqual(DEFAULT_PANEL_SETTINGS);
   });
 
-  it("normalizes exact database field rules", () => {
-    const settings = normalizePanelSettings({
-      version: 1,
-      fieldRules: [{
-        databaseId: "av-1",
-        fieldId: "field-1",
-        display: true,
-        displayAs: "Due date",
-        editable: true,
-        order: 5,
-      }],
-    });
-
-    expect(settings.fieldRules).toEqual([{
-      id: "field:av-1:field-1",
-      databaseId: "av-1",
-      fieldId: "field-1",
-      display: true,
-      displayAs: "Due date",
-      editable: true,
-      order: 5,
-    }]);
-  });
-
   it("locks immutable document keys even when persisted input is editable", () => {
     const settings = normalizePanelSettings({
       version: 1,
       showPanel: true,
       showDocumentPanel: true,
-      showDatabasePanel: true,
       rules: [
         ...DEFAULT_PANEL_SETTINGS.rules,
         { id: "user-id", name: "ID", rule: "id", matchMethod: "exact", scope: "document", display: true, displayAs: "ID", editable: true, order: 1 },
@@ -62,7 +36,6 @@ describe("normalizePanelSettings", () => {
         name: "Changed internal name",
         rule: "name",
         matchMethod: "wildcard",
-        scope: "all",
         displayAs: "Changed display",
         editable: true,
         order: 99,
@@ -86,7 +59,6 @@ describe("normalizePanelSettings", () => {
       version: 1,
       showPanel: false,
       showDocumentPanel: false,
-      showDatabasePanel: true,
       rules: [
         ...DEFAULT_PANEL_SETTINGS.rules,
         {
@@ -113,7 +85,7 @@ describe("normalizePanelSettings", () => {
 describe("normalizeLegacySettings", () => {
   it("migrates legacy rules and configurations", () => {
     const settings = normalizeLegacySettings({
-      legacyConfigurations: { show: false, showSettings: { page: false, block: true } },
+      legacyConfigurations: { show: false },
       legacyRules: [{
         name: "命名",
         rule: "name",
@@ -127,7 +99,6 @@ describe("normalizeLegacySettings", () => {
 
     expect(settings.version).toBe(1);
     expect(settings.showPanel).toBe(false);
-    expect(settings.showDatabasePanel).toBe(false);
     const nameRule = settings.rules.find((rule) => rule.rule === "name");
     expect(nameRule).toMatchObject({
       matchMethod: "exact",
@@ -137,7 +108,6 @@ describe("normalizeLegacySettings", () => {
     });
     expect(settings.rules.some((rule) => rule.rule === "updated")).toBe(true);
     expect(settings.rules.find((rule) => rule.rule === "id")?.editable).toBe(false);
-    expect(nameRule?.editable).toBe(false); // legacy fixture explicitly disables name
   });
 });
 
@@ -173,23 +143,5 @@ describe("compareDisplayRules", () => {
       { ...DEFAULT_PANEL_SETTINGS.rules[0], id: "c", order: 0 },
     ];
     expect([...rules].sort(compareDisplayRules).map((rule) => rule.id)).toEqual(["c", "a", "b"]);
-  });
-});
-
-describe("normalizeDatabaseFieldRules", () => {
-  it("filters incomplete database bindings", () => {
-    expect(normalizeDatabaseFieldRules([
-      { databaseId: "av-1" },
-      { fieldId: "field-1" },
-      { databaseId: "av-1", fieldId: "field-1", display: true },
-    ])).toEqual([{
-      id: "field:av-1:field-1",
-      databaseId: "av-1",
-      fieldId: "field-1",
-      display: true,
-      displayAs: "field-1",
-      editable: true,
-      order: 1000,
-    }]);
   });
 });

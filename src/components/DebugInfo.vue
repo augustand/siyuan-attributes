@@ -2,7 +2,6 @@
     <div class="attribute-info">
         <div>Document ID: {{ attributeStore.documentId }}</div>
         <div>Attributes: {{ attributeStore.builtInAttributes }}</div>
-        <div>Attribute views: {{ Object.keys(attributeStore.dataBaseAttributes) }}</div>
     </div>
 </template>
 

@@ -60,14 +60,12 @@ describe("settings persistence", () => {
   it("saves normalized settings", async () => {
     await savePanelSettings(pluginDataStore, {
       ...DEFAULT_PANEL_SETTINGS,
-      showDatabasePanel: false,
       // @ts-expect-error exercise runtime normalization
       version: 2,
     });
 
     expect(data.get("settings-v1")).toMatchObject({
       version: 1,
-      showDatabasePanel: false,
     });
   });
 
