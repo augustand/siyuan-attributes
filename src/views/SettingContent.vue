@@ -60,17 +60,17 @@
                                     <span>{{ labels.order }}</span>
                                     <t-input-number v-model="rule.order" theme="column" :min="0" :max="99999" />
                                 </label>
-                                <label>
-                                    <span>{{ labels.display }}</span>
-                                    <t-checkbox v-model="rule.display" />
-                                </label>
-                                <label>
-                                    <span>{{ labels.editable }}</span>
+                                <div class="rule-check">
+                                    <t-checkbox v-model="rule.display">{{ labels.display }}</t-checkbox>
+                                </div>
+                                <div class="rule-check">
                                     <t-checkbox
                                         v-model="rule.editable"
                                         :disabled="isEditableLocked(rule)"
-                                    />
-                                </label>
+                                    >
+                                        {{ labels.editable }}
+                                    </t-checkbox>
+                                </div>
                             </div>
                             <p v-if="isEditableLocked(rule)" class="setting-help">
                                 {{ labels.readOnlyCapability }}
@@ -351,6 +351,18 @@ onMounted(load);
         gap: 5px;
         font-size: var(--td-font-body-small);
         color: var(--td-text-color-secondary);
+    }
+
+    .rule-check {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        min-height: 32px;
+
+        :deep(.t-checkbox) {
+            width: auto;
+            margin: 0;
+        }
     }
 }
 
