@@ -53,6 +53,15 @@
                                     </t-select>
                                 </label>
                                 <label>
+                                    <span>{{ labels.renderMethod }}</span>
+                                    <t-select v-model="rule.renderMethod">
+                                        <t-option value="input" :label="labels.renderInput" />
+                                        <t-option value="tag-input" :label="labels.renderTag" />
+                                        <t-option value="datetime" :label="labels.renderDatetime" />
+                                        <t-option value="link" :label="labels.renderLink" />
+                                    </t-select>
+                                </label>
+                                <label>
                                     <span>{{ labels.order }}</span>
                                     <t-input-number v-model="rule.order" theme="column" :min="0" :max="99999" />
                                 </label>
@@ -120,6 +129,11 @@ const ruleCardRefs = ref<Array<HTMLElement>>([]);
     exact: getI18nText('settings.exact', '精确'),
     wildcard: getI18nText('settings.wildcard', '通配符'),
     regex: getI18nText('settings.regex', '正则'),
+    renderMethod: getI18nText('settings.renderMethod', '渲染方式'),
+    renderInput: getI18nText('settings.renderInput', '文本'),
+    renderTag: getI18nText('settings.renderTag', '标签'),
+    renderDatetime: getI18nText('settings.renderDatetime', '日期时间'),
+    renderLink: getI18nText('settings.renderLink', '链接/ID'),
     order: getI18nText('settings.order', '排序值'),
     display: getI18nText('settings.display', '显示'),
     editable: getI18nText('settings.editable', '可编辑'),
@@ -196,6 +210,7 @@ function addRule(): void {
         display: true,
         displayAs: '',
         editable: true,
+        renderMethod: 'input',
         order: maxOrder + 1,
     });
     void nextTick(() => {

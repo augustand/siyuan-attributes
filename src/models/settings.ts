@@ -1,5 +1,6 @@
 export type DisplayRuleScope = "document";
 export type DisplayMatchMethod = "exact" | "wildcard" | "regex";
+export type DisplayRenderMethod = "input" | "tag-input" | "datetime" | "link";
 
 export interface DisplayRule {
     id: string;
@@ -10,7 +11,7 @@ export interface DisplayRule {
     display: boolean;
     displayAs: string;
     editable: boolean;
-    renderMethod?: string;
+    renderMethod?: DisplayRenderMethod;
     order: number;
     icon?: string;
     system?: boolean;
@@ -68,6 +69,15 @@ function normalizeMatchMethod(value: unknown): DisplayMatchMethod {
     return "exact";
 }
 
+export function normalizeRenderMethod(value: unknown): DisplayRenderMethod | undefined {
+    if (value === undefined || value === null || value === "") return undefined;
+    if (value === "tag-input") return "tag-input";
+    if (value === "datetime") return "datetime";
+    if (value === "link") return "link";
+    if (value === "input" || value === "checkbox") return "input";
+    return "input";
+}
+
 export const DEFAULT_PANEL_SETTINGS: PanelSettings = {
     version: 1,
     showPanel: true,
@@ -78,11 +88,11 @@ export const DEFAULT_PANEL_SETTINGS: PanelSettings = {
         },
         {
             id: "system-scroll", name: "阅读进度", rule: "scroll", matchMethod: "exact", scope: "document",
-            display: false, displayAs: "阅读进度", editable: false, order: 1000, system: true,
+            display: false, displayAs: "阅读进度", editable: false, renderMethod: "input", order: 1000, system: true,
         },
         {
             id: "system-title", name: "标题", rule: "title", matchMethod: "exact", scope: "document",
-            display: false, displayAs: "标题", editable: false, order: 1000, system: true,
+            display: false, displayAs: "标题", editable: false, renderMethod: "input", order: 1000, system: true,
         },
         {
             id: "system-name", name: "命名", rule: "name", matchMethod: "exact", scope: "document",
@@ -94,11 +104,11 @@ export const DEFAULT_PANEL_SETTINGS: PanelSettings = {
         },
         {
             id: "system-type", name: "类型", rule: "type", matchMethod: "exact", scope: "document",
-            display: false, displayAs: "类型", editable: false, order: 1000, system: true,
+            display: false, displayAs: "类型", editable: false, renderMethod: "input", order: 1000, system: true,
         },
         {
             id: "system-icon", name: "文档图标", rule: "icon", matchMethod: "exact", scope: "document",
-            display: false, displayAs: "文档图标", editable: false, order: 1000, system: true,
+            display: false, displayAs: "文档图标", editable: false, renderMethod: "input", order: 1000, system: true,
         },
         {
             id: "system-updated", name: "更新日期", rule: "updated", matchMethod: "exact", scope: "document",
@@ -106,7 +116,7 @@ export const DEFAULT_PANEL_SETTINGS: PanelSettings = {
         },
         {
             id: "system-fold", name: "折叠状态", rule: "fold", matchMethod: "exact", scope: "document",
-            display: false, displayAs: "折叠状态", editable: false, order: 1000, system: true,
+            display: false, displayAs: "折叠状态", editable: false, renderMethod: "input", order: 1000, system: true,
         },
     ],
 };
@@ -129,6 +139,7 @@ export function normalizeDisplayRule(input: unknown): DisplayRule | undefined {
     let matchMethod = normalizeMatchMethod(source.matchMethod);
     let scope: DisplayRuleScope = "document";
     let editable = bool(source.editable, true);
+    let renderMethod = normalizeRenderMethod(source.renderMethod);
 
     if (isSystem) {
         const defaultRule = DEFAULT_PANEL_SETTINGS.rules.find((item) => item.id === id);
@@ -136,6 +147,7 @@ export function normalizeDisplayRule(input: unknown): DisplayRule | undefined {
             rule = defaultRule.rule;
             name = defaultRule.name;
             matchMethod = defaultRule.matchMethod;
+            if (renderMethod === undefined) renderMethod = defaultRule.renderMethod;
         }
         if (!EDITABLE_SYSTEM_RULE_IDS.has(id)) editable = false;
     }
@@ -143,6 +155,8 @@ export function normalizeDisplayRule(input: unknown): DisplayRule | undefined {
     if (matchMethod === "exact" && isReadOnlyDocumentAttributeName(rule)) {
         editable = false;
     }
+
+    if (renderMethod === undefined) renderMethod = "input";
 
     return {
         id,
@@ -153,10 +167,10 @@ export function normalizeDisplayRule(input: unknown): DisplayRule | undefined {
         display: bool(source.display, true),
         displayAs: string(source.displayAs, name),
         editable,
-        renderMethod: typeof source.renderMethod === "string" ? source.renderMethod : undefined,
+        renderMethod,
         order: number(source.order, 1000),
-        icon: typeof source.icon === "string" ? source.icon : undefined,
         system: isSystem,
+        ...(typeof source.icon === "string" ? { icon: source.icon } : {}),
     };
 }
 
