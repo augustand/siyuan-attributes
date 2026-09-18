@@ -4,6 +4,7 @@ import type { App } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAttributesStore } from "@/store/attribute";
 import { normalizeCustomAttributeKey } from "@/services/attributeKeys";
+import { DOCUMENT_FIELD_OVERRIDES_ATTR } from "@/models/documentFieldOverrides";
 import type { Store } from "pinia";
 
 const fetchBlockAttrs = vi.fn();
@@ -117,9 +118,83 @@ describe("attributes store CRUD", () => {
 
     await store.deleteCustomAttribute("custom-x");
 
-    expect(writeBlockAttrs).toHaveBeenCalledWith("doc", { "custom-x": "" });
+    expect(writeBlockAttrs).toHaveBeenCalledWith(
+      "doc",
+      expect.objectContaining({ "custom-x": "", [DOCUMENT_FIELD_OVERRIDES_ATTR]: "" }),
+    );
   });
 
+  it("hides the reserved overrides attribute from panel lists", async () => {
+    fetchBlockAttrs.mockResolvedValue({
+      id: "doc",
+      "custom-x": "1",
+      [DOCUMENT_FIELD_OVERRIDES_ATTR]: JSON.stringify({
+        v: 1,
+        fields: { "custom-x": { display: true, displayAs: "X", order: 1, editable: true } },
+      }),
+    });
+    const store = initializeStore();
+    await store.loadDocumentAttributes();
+    expect(store.allDocumentAttributes.map((i) => i.key)).not.toContain(DOCUMENT_FIELD_OVERRIDES_ATTR);
+    expect(store.builtInAttributes.map((i) => i.key)).not.toContain(DOCUMENT_FIELD_OVERRIDES_ATTR);
+  });
 
+  it("applies document overrides on top of global rules", async () => {
+    fetchBlockAttrs.mockResolvedValue({
+      id: "doc",
+      "custom-hidden": "secret",
+      [DOCUMENT_FIELD_OVERRIDES_ATTR]: JSON.stringify({
+        v: 1,
+        fields: {
+          "custom-hidden": { display: true, displayAs: "Shown Here", order: 5, editable: true },
+        },
+      }),
+    });
+    const store = initializeStore();
+    await store.loadDocumentAttributes();
+    const row = store.builtInAttributes.find((i) => i.key === "custom-hidden");
+    expect(row?.displayAs).toBe("Shown Here");
+    expect(row?.order).toBe(5);
+  });
 
+  it("rejects creating the reserved overrides key", async () => {
+    const store = initializeStore();
+    await expect(store.createCustomAttribute(DOCUMENT_FIELD_OVERRIDES_ATTR, "{}")).rejects.toThrow();
+  });
+
+  it("prunes overrides when a custom attribute is deleted", async () => {
+    writeBlockAttrs.mockResolvedValue(undefined);
+    fetchBlockAttrs
+      .mockResolvedValueOnce({
+        id: "doc",
+        "custom-x": "1",
+        [DOCUMENT_FIELD_OVERRIDES_ATTR]: JSON.stringify({
+          v: 1,
+          fields: {
+            "custom-x": { display: false, displayAs: "X", order: 1, editable: true },
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        id: "doc",
+        "custom-x": "1",
+        [DOCUMENT_FIELD_OVERRIDES_ATTR]: JSON.stringify({
+          v: 1,
+          fields: {
+            "custom-x": { display: false, displayAs: "X", order: 1, editable: true },
+          },
+        }),
+      })
+      .mockResolvedValue({ id: "doc" });
+    const store = initializeStore();
+    await store.loadDocumentAttributes();
+    await store.deleteCustomAttribute("custom-x");
+    expect(writeBlockAttrs).toHaveBeenCalledWith(
+      "doc",
+      expect.objectContaining({
+        "custom-x": "",
+        [DOCUMENT_FIELD_OVERRIDES_ATTR]: "",
+      }),
+    );
+  });
 });
