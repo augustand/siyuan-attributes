@@ -135,32 +135,6 @@ export const useConfigStore = defineStore(pluginKey + "settings", () => {
         return [...settings.value.rules].sort(compareDisplayRules);
     }
 
-    async function upsertDocumentFieldRules(rules: DisplayRule[]): Promise<void> {
-        let nextRules = [...settings.value.rules];
-
-        for (const input of rules) {
-            const candidate = normalizeDisplayRule({
-                ...input,
-                matchMethod: "exact",
-                scope: "document",
-            });
-            if (!candidate) continue;
-
-            const existingIndex = nextRules.findIndex((rule) => (
-                rule.id === candidate.id
-                || (rule.matchMethod === "exact"
-                    && rule.rule === candidate.rule)
-            ));
-            nextRules = existingIndex >= 0
-                ? nextRules.map((rule, index) => index === existingIndex ? candidate : rule)
-                : [...nextRules, candidate];
-        }
-
-        settings.value = { ...settings.value, rules: nextRules };
-        await persist();
-    }
-
-
     return {
         settings,
         isReady,
@@ -174,6 +148,5 @@ export const useConfigStore = defineStore(pluginKey + "settings", () => {
         resetSettings,
         matchDocumentRule,
         documentRules,
-        upsertDocumentFieldRules,
     };
 });

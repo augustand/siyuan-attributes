@@ -11,7 +11,7 @@
                 </header>
 
                 <div class="dialog-body">
-                    <t-loading :loading="loading || store.isSaving" :text="labels.loading">
+                    <t-loading :loading="loading || attributeStore.isSaving" :text="labels.loading">
                         <section class="field-group">
                             <div class="group-header">
                                 <h3>{{ labels.documentFields }}</h3>
@@ -19,15 +19,15 @@
                             </div>
 
                             <div v-if="documentItems.length === 0" class="empty">
-                                {{ labels.noDocumentFields }}
+                                {{ labels.emptyHint }}
                             </div>
 
                             <div v-for="item in documentItems" :key="item.key" class="field-card">
                                 <div class="field-identity">
                                     <div class="field-title">
-                                        <span class="field-name">{{ item.attr.displayAs || item.key }}</span>
+                                        <span class="field-name">{{ item.draft.displayAs || item.key }}</span>
                                         <span class="source-badge">文档</span>
-                                        <span v-if="!item.rule.display" class="hidden-badge">{{ labels.hidden }}</span>
+                                        <span v-if="!item.draft.display" class="hidden-badge">{{ labels.hidden }}</span>
                                     </div>
                                     <code class="field-key">{{ item.key }}</code>
                                     <p v-if="item.attr.value" class="field-preview">{{ item.attr.value }}</p>
@@ -36,27 +36,37 @@
                                 <div class="field-controls">
                                     <label>
                                         <span>{{ labels.display }}</span>
-                                        <t-switch v-model="item.rule.display" />
+                                        <t-switch v-model="item.draft.display" />
                                     </label>
                                     <label>
                                         <span>{{ labels.displayName }}</span>
-                                        <t-input v-model="item.rule.displayAs" />
+                                        <t-input v-model="item.draft.displayAs" />
                                     </label>
                                     <label>
                                         <span>{{ labels.order }}</span>
-                                        <t-input-number v-model="item.rule.order" theme="column" :min="0" :max="99999" />
+                                        <t-input-number v-model="item.draft.order" theme="column" :min="0" :max="99999" />
                                     </label>
                                     <label>
                                         <span>{{ labels.editable }}</span>
                                         <t-switch
-                                            v-model="item.rule.editable"
+                                            v-model="item.draft.editable"
                                             :disabled="isDocumentKeyReadonly(item.key)"
                                         />
                                     </label>
                                 </div>
-                                <p v-if="isDocumentKeyReadonly(item.key)" class="readonly-help">
-                                    {{ labels.readonlyCapability }}
-                                </p>
+                                <div class="field-footer">
+                                    <p v-if="isDocumentKeyReadonly(item.key)" class="readonly-help">
+                                        {{ labels.readonlyCapability }}
+                                    </p>
+                                    <t-button
+                                        size="small"
+                                        variant="text"
+                                        :disabled="isSameAsBaseline(item)"
+                                        @click="restore(item)"
+                                    >
+                                        {{ labels.restoreDefault }}
+                                    </t-button>
+                                </div>
                             </div>
                         </section>
                     </t-loading>
@@ -79,13 +89,24 @@ import { computed, onMounted, ref } from 'vue';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { useAttributesStore } from '@/store/attribute';
 import { useConfigStore } from '@/store/rules';
-import {
-  findExactDisplayRule,
-  normalizeDisplayRule,
-} from '@/models/settings';
 import { isReadOnlyDocumentAttributeName } from '@/models/settings';
-import type { DisplayRule } from '@/models/settings';
+import {
+    applyDocumentFieldOverride,
+    type DocumentFieldOverride,
+} from '@/models/documentFieldOverrides';
 import { getI18nText } from '@/services/i18n';
+
+interface FieldDraft {
+    key: string;
+    attr: {
+        key: string;
+        value: string;
+        displayAs: string;
+        editable: boolean;
+    };
+    baseline: DocumentFieldOverride;
+    draft: DocumentFieldOverride;
+}
 
 const emit = defineEmits<{
     (event: 'close'): void;
@@ -94,31 +115,21 @@ const emit = defineEmits<{
 
 const attributeStore = useAttributesStore();
 const settingsStore = useConfigStore();
-const store = attributeStore;
 const loading = ref(false);
 const saving = ref(false);
 const status = ref('');
-
-const documentDrafts = ref<Array<{
-    key: string;
-    attr: {
-        key: string;
-        value: string;
-        displayAs: string;
-        editable: boolean;
-    };
-    rule: DisplayRule;
-}>>([]);
+const documentDrafts = ref<FieldDraft[]>([]);
 
 const labels = {
     title: getI18nText('fieldSettings.title', '当前字段设置'),
-    subtitle: getI18nText('fieldSettings.subtitle', '配置当前文档中的属性'),
+    subtitle: getI18nText('fieldSettings.subtitle', '仅影响当前文档；未覆盖的字段仍使用全局默认规则'),
     close: getI18nText('close', '关闭'),
     loading: getI18nText('loading', '加载中...'),
     save: getI18nText('save', '保存'),
     cancel: getI18nText('cancel', '取消'),
     documentFields: getI18nText('fieldSettings.documentFields', '文档属性'),
-    noDocumentFields: getI18nText('fieldSettings.noDocumentFields', '暂无文档属性'),
+    emptyHint: getI18nText('fieldSettings.emptyHint', '当前文档还没有属性。请先在面板中「添加属性」。'),
+    restoreDefault: getI18nText('fieldSettings.restoreDefault', '恢复默认'),
     display: getI18nText('settings.display', '显示'),
     displayName: getI18nText('settings.displayName', '显示名'),
     order: getI18nText('settings.order', '排序值'),
@@ -132,49 +143,59 @@ const labels = {
 const canSave = computed(() => !loading.value && !saving.value);
 const documentItems = computed(() => documentDrafts.value);
 
-function buildDocumentDraft(item: {
-    key: string;
-    value: string;
-    name: string;
-    displayAs: string;
-    editable: boolean;
-    order: number;
-    icon?: string;
-}) {
-    const exact = findExactDisplayRule(settingsStore.settings.rules, item.key);
-    const matched = settingsStore.matchDocumentRule(item.key);
-    const base = exact || matched;
-
-    return normalizeDisplayRule({
-        id: exact?.id || `field:document:${item.key}`,
-        name: item.key,
-        rule: item.key,
-        matchMethod: 'exact',
-        scope: 'document',
-        display: base ? base.display : true,
-        displayAs: base?.displayAs || item.displayAs || item.key,
-        editable: !isReadOnlyDocumentAttributeName(item.key) && (base?.editable ?? true),
-        order: base?.order ?? item.order,
-        icon: base?.icon || item.icon,
-        system: Boolean(base?.system && exact),
-    });
+function baselineFor(key: string, fallbackDisplayAs: string, fallbackOrder: number): DocumentFieldOverride {
+    const matched = settingsStore.matchDocumentRule(key);
+    if (matched) {
+        return {
+            display: matched.display,
+            displayAs: matched.displayAs || fallbackDisplayAs,
+            order: matched.order,
+            editable: !isReadOnlyDocumentAttributeName(key) && matched.editable,
+        };
+    }
+    return {
+        display: true,
+        displayAs: fallbackDisplayAs,
+        order: fallbackOrder,
+        editable: !isReadOnlyDocumentAttributeName(key),
+    };
 }
 
 function isDocumentKeyReadonly(key: string): boolean {
     return isReadOnlyDocumentAttributeName(key);
 }
 
+function isSameAsBaseline(item: FieldDraft): boolean {
+    return (
+        item.draft.display === item.baseline.display
+        && item.draft.displayAs === item.baseline.displayAs
+        && item.draft.order === item.baseline.order
+        && item.draft.editable === item.baseline.editable
+    );
+}
+
+function restore(item: FieldDraft): void {
+    item.draft = { ...item.baseline };
+}
+
 function loadDrafts(): void {
-    documentDrafts.value = attributeStore.allDocumentAttributes.map((attribute) => ({
-        key: attribute.key,
-        attr: {
+    const overrides = attributeStore.documentFieldOverrides.fields;
+    documentDrafts.value = attributeStore.allDocumentAttributes.map((attribute) => {
+        const baseline = baselineFor(attribute.key, attribute.displayAs, attribute.order);
+        const existing = overrides[attribute.key];
+        const draft = applyDocumentFieldOverride(baseline, existing);
+        return {
             key: attribute.key,
-            value: attribute.value,
-            displayAs: attribute.displayAs,
-            editable: attribute.editable,
-        },
-        rule: buildDocumentDraft(attribute),
-    }));
+            attr: {
+                key: attribute.key,
+                value: attribute.value,
+                displayAs: attribute.displayAs,
+                editable: attribute.editable,
+            },
+            baseline,
+            draft: { ...draft },
+        };
+    });
 }
 
 function close(): void {
@@ -187,10 +208,17 @@ async function save(): Promise<void> {
     status.value = '';
 
     try {
-        await settingsStore.upsertDocumentFieldRules(
-            documentDrafts.value.map((item) => item.rule),
-        );
-
+        const fields: Record<string, DocumentFieldOverride> = {};
+        for (const item of documentDrafts.value) {
+            if (isSameAsBaseline(item)) continue;
+            fields[item.key] = {
+                display: item.draft.display,
+                displayAs: item.draft.displayAs,
+                order: item.draft.order,
+                editable: isDocumentKeyReadonly(item.key) ? false : item.draft.editable,
+            };
+        }
+        await attributeStore.saveDocumentFieldOverrides(fields);
         status.value = labels.saveSuccess;
         emit('saved');
         emit('close');
@@ -206,6 +234,7 @@ onMounted(async () => {
     loading.value = true;
     try {
         await settingsStore.initialize();
+        await attributeStore.loadDocumentAttributes();
         loadDrafts();
     } catch (error) {
         status.value = error instanceof Error ? error.message : getI18nText('settings.loadFailed', '加载设置失败');
@@ -291,6 +320,14 @@ onMounted(async () => {
     font-size: 12px;
 }
 
+.empty {
+    padding: 18px;
+    border: 1px dashed var(--td-component-border);
+    border-radius: var(--td-radius-medium);
+    color: var(--td-text-color-secondary);
+    text-align: center;
+}
+
 .field-card {
     padding: 14px;
     margin-bottom: 10px;
@@ -355,8 +392,16 @@ onMounted(async () => {
     }
 }
 
+.field-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 8px;
+}
+
 .readonly-help {
-    margin: 8px 0 0;
+    margin: 0;
     color: var(--td-text-color-secondary);
     font-size: 12px;
 }
