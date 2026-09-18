@@ -16,7 +16,6 @@ describe("normalizePanelSettings", () => {
     const settings = normalizePanelSettings({
       version: 1,
       showPanel: true,
-      showDocumentPanel: true,
       rules: [
         ...DEFAULT_PANEL_SETTINGS.rules,
         { id: "user-id", name: "ID", rule: "id", matchMethod: "exact", scope: "document", display: true, displayAs: "ID", editable: true, order: 1 },
@@ -58,7 +57,6 @@ describe("normalizePanelSettings", () => {
     const settings = normalizePanelSettings({
       version: 1,
       showPanel: false,
-      showDocumentPanel: false,
       rules: [
         ...DEFAULT_PANEL_SETTINGS.rules,
         {
@@ -76,7 +74,6 @@ describe("normalizePanelSettings", () => {
     });
 
     expect(settings.showPanel).toBe(false);
-    expect(settings.showDocumentPanel).toBe(false);
     expect(settings.rules.some((rule) => rule.id === "user-project")).toBe(true);
     expect(settings.rules.some((rule) => rule.id === "system-id")).toBe(true);
   });

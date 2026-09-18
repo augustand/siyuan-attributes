@@ -6,8 +6,6 @@
     "general": "General",
     "showPanel": "Show attribute panel",
     "showPanelHelp": "Hide every attribute panel below documents.",
-    "showDocumentPanel": "Show document attributes",
-    "showDocumentPanelHelp": "Controls the document-level custom attribute area.",
     "rules": "Display rules",
     "changesPending": "Save your changes",
     "searchRules": "Search rules or attribute names",

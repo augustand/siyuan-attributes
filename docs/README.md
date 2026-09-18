@@ -2,21 +2,21 @@
 
 Note: The current version focuses on document attributes. Database field features have been temporarily removed.
 
-### 即将推出的功能...
+### Coming soon
 
-- [支持高度可配置的自定义设置](https://github.com/InEase/SiYuan-Attributes-Panel/issues/5)
-- [支持内联显示块级属性](https://github.com/InEase/SiYuan-Attributes-Panel/issues/7)
+- [Inline block-level attributes](https://github.com/InEase/SiYuan-Attributes-Panel/issues/7)
 
-快的话这周就能完工, 欢迎跟踪进度 / 催更 / 提建议
+Feedback and suggestions welcome.
 
-### 插件功能
+### Features
 
-通过这个插件可以实现：
+1. Attribute panel under the document title for **document-level** custom attributes (add / edit / delete; `custom-` prefix is normalized on save)
+2. **Attribute Panel Settings** (plugin settings): global default rules (display name, visibility, editability, order, wildcards/regex)
+3. **Field settings** (in-panel): overrides for **this document only**; other fields still follow global defaults
+4. Dark mode support
+5. Block-level attribute panel is not implemented yet
 
-1. 在文档下面显示一个属性面板，展示**文档级**自定义属性；自定义属性支持新增、修改、删除和刷新，新增时只需输入名称，保存前会自动补 `custom-` 前缀
-2. 提供设置面板，可配置属性显示名、显示/隐藏、可编辑性和排序
-3. 支持暗黑模式
-4. 块级属性面板尚未实现
+The plugin stores per-document overrides in the reserved attribute `custom-mux-attrs__doc__fields`, which is hidden from the panel.
 
 ### 为什么开发这个插件
 

@@ -19,7 +19,6 @@ export interface DisplayRule {
 export interface PanelSettings {
     version: 1;
     showPanel: boolean;
-    showDocumentPanel: boolean;
     rules: DisplayRule[];
 }
 
@@ -72,7 +71,6 @@ function normalizeMatchMethod(value: unknown): DisplayMatchMethod {
 export const DEFAULT_PANEL_SETTINGS: PanelSettings = {
     version: 1,
     showPanel: true,
-    showDocumentPanel: true,
     rules: [
         {
             id: "system-id", name: "文档ID", rule: "id", matchMethod: "exact", scope: "document",
@@ -181,7 +179,6 @@ export function normalizePanelSettings(input: unknown): PanelSettings {
     return {
         version: 1,
         showPanel: bool(source.showPanel, true),
-        showDocumentPanel: bool(source.showDocumentPanel, true),
         rules,
     };
 }
@@ -214,7 +211,6 @@ export function normalizeLegacySettings(input: {
     return {
         version: 1,
         showPanel: bool(legacyConfigurations.show, true),
-        showDocumentPanel: bool(legacyConfigurations.show, true),
         rules: migrated,
     };
 }

@@ -36,7 +36,6 @@ describe("settings persistence", () => {
     const settings = await loadPanelSettings(pluginDataStore);
 
     expect(settings.showPanel).toBe(false);
-    expect(settings.showDocumentPanel).toBe(false);
     expect(settings.rules.find((rule) => rule.rule === "name")).toMatchObject({
       matchMethod: "exact",
       displayAs: "Old name",

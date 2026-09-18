@@ -9,10 +9,6 @@
                             <t-checkbox v-model="local.showPanel" />
                             <span>{{ labels.showPanel }}</span>
                         </label>
-                        <label class="setting-line">
-                            <t-checkbox v-model="local.showDocumentPanel" />
-                            <span>{{ labels.showDocumentPanel }}</span>
-                        </label>
                     </section>
 
                     <section class="settings-section">
@@ -111,10 +107,9 @@ const ruleCardRefs = ref<Array<HTMLElement>>([]);
     title: getI18nText('settings.title', '属性面板设置'),
     general: getI18nText('settings.general', '通用'),
     showPanel: getI18nText('settings.showPanel', '显示属性面板'),
-    showDocumentPanel: getI18nText('settings.showDocumentPanel', '显示文档属性'),
     rules: getI18nText('settings.documentRules', '文档属性规则'),
     addRule: getI18nText('settings.addRule', '添加规则'),
-    help: getI18nText('settings.help', '按属性名匹配文档属性，可控制显示名、显示状态、可编辑性和排序。'),
+    help: getI18nText('settings.help', '按属性名匹配文档属性，可控制显示名、显示状态、可编辑性和排序。此处为全局默认；单篇文档特例请在属性面板的「字段设置」中配置。'),
     noRules: getI18nText('settings.noRules', '暂无规则'),
     moveUp: getI18nText('settings.moveUp', '上移'),
     moveDown: getI18nText('settings.moveDown', '下移'),

@@ -6,8 +6,6 @@
     "general": "通用",
     "showPanel": "显示属性面板",
     "showPanelHelp": "关闭后，所有文档下方的属性面板都会隐藏。",
-    "showDocumentPanel": "显示文档属性",
-    "showDocumentPanelHelp": "控制文档级自定义属性区域。",
     "rules": "显示规则",
     "changesPending": "修改后点击保存",
     "searchRules": "搜索规则或属性名",
