@@ -24,7 +24,12 @@
                         <p class="setting-help">{{ labels.help }}</p>
                         <div v-if="local.rules.length === 0" class="empty">{{ labels.noRules }}</div>
 
-                        <div v-for="rule in sortedRules" :key="rule.id" class="rule-card">
+                        <div
+                            v-for="rule in sortedRules"
+                            :key="rule.id"
+                            ref="ruleCardRefs"
+                            class="rule-card"
+                        >
                             <div class="rule-header">
                                 <strong>{{ rule.name || rule.rule }}</strong>
                                 <div class="rule-actions">
@@ -87,6 +92,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { nextTick } from 'vue';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { useConfigStore } from '@/store/rules';
 import { normalizePanelSettings } from '@/models/settings';
@@ -98,6 +104,7 @@ const store = useConfigStore();
 const loading = ref(false);
 const saving = ref(false);
 const local = ref<PanelSettings>(normalizePanelSettings({}));
+const ruleCardRefs = ref<Array<HTMLElement>>([]);
 
   const labels = {
     loading: getI18nText('loading', '加载中...'),
@@ -196,6 +203,12 @@ function addRule(): void {
         editable: true,
         order: maxOrder + 1,
     });
+    void nextTick(() => {
+        ruleCardRefs.value[ruleCardRefs.value.length - 1]?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+        });
+    });
 }
 
 function removeRule(id: string): void {
@@ -219,6 +232,50 @@ onMounted(load);
 </script>
 
 <style scoped lang="scss">
+.setting.command-palette.detail-base {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.setting.command-palette.detail-base :deep(.t-card) {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border: 0;
+}
+
+.setting.command-palette.detail-base :deep(.t-card__body) {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.setting.command-palette.detail-base :deep(.t-loading__parent) {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.setting.command-palette.detail-base :deep(.t-loading__content) {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.setting.command-palette.detail-base :deep(.t-card__footer) {
+    flex: 0 0 auto;
+    padding: 12px 0 0;
+}
+
 .settings-body {
     display: flex;
     flex-direction: column;
