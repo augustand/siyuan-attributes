@@ -1,33 +1,13 @@
 <template>
-    <t-layout style="height: 100%;">
-        <t-aside v-if="true">
-            <t-menu theme="light" value="dashboard" style="margin-right: 50px" height="550px">
-                <t-menu-item value="dashboard">
-                    <template #icon>
-                        <t-icon name="dashboard" />
-                    </template>
-                    属性面板
-                    <t-tag theme="success" variant="outline">latest v1.1.0</t-tag>
-                </t-menu-item>
-            </t-menu>
-        </t-aside>
-        <t-layout>
-            <t-content>
-                <div class="layout">
-                    <SettingContent />
-                </div>
-            </t-content>
-            <t-footer>Copyright @ 2022-{{ new Date().getFullYear() }} TransMux. All Rights Reserved</t-footer>
-        </t-layout>
-    </t-layout>
+    <SettingContent class="mux-plugin-settings" />
 </template>
 
 <script setup lang="ts">
+import { inject } from 'vue';
+import type { Plugin } from 'siyuan';
 import SettingContent from './SettingContent.vue';
-</script>
+import { setI18n } from '@/services/i18n';
 
-<style scoped>
-.layout {
-    padding: var(--td-comp-paddingTB-xl) var(--td-comp-paddingLR-xl);
-}
-</style>
+const plugin = inject<Plugin>('$plugin');
+setI18n(plugin?.i18n as Record<string, unknown> | undefined);
+</script>

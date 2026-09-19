@@ -1,158 +1,152 @@
 import { defineStore } from "pinia";
-import { Plugin } from "siyuan";
-import { Ref, UnwrapRef, inject, ref, unref, watch } from "vue";
-
-export interface displayRule {
-  name: string; // 规则名
-
-  rule: string; // 匹配属性名 | 匹配规则 | 正则
-  matchMethod: string; // 匹配方法, 精确 | 通配符 | 正则
-  // TODO: 路径等其他属性的匹配 / 高级匹配
-
-  display: boolean; // 是否显示
-  renderMethod?: string; // 渲染方法
-  displayAs?: string; // 显示名
-  editable?: boolean; // 是否可编辑
-
-  order?: number; // 顺序
-  icon?: string; // t-icon name 图标
-}
-
-const defaultdisplayRules: Array<displayRule> = [
-  {
-    name: "文档ID",
-    rule: "id",
-    matchMethod: "精确",
-    display: true,
-    displayAs: "块 ID",
-    editable: false,
-    renderMethod: "link", // TODO: 需要支持识别思源id
-    order: 0,
-    icon: "link",
-  },
-  {
-    name: "阅读进度",
-    rule: "scroll",
-    matchMethod: "精确",
-    display: false,
-  },
-  {
-    name: "标题",
-    rule: "title",
-    matchMethod: "精确",
-    display: false,
-  },
-  {
-    name: "命名",
-    rule: "name",
-    matchMethod: "精确",
-    display: true,
-    displayAs: "命名",
-    editable: true,
-    renderMethod: "input",
-  },
-  {
-    name: "别名",
-    rule: "alias",
-    matchMethod: "精确",
-    display: true,
-    displayAs: "别名",
-    editable: true,
-    renderMethod: "tag-input",
-  },
-  {
-    name: "类型",
-    rule: "type",
-    matchMethod: "精确",
-    display: false,
-  },
-  {
-    name: "文档图标",
-    rule: "icon",
-    matchMethod: "精确",
-    display: false,
-  },
-  {
-    name: "更新日期",
-    rule: "updated",
-    matchMethod: "精确",
-    display: true,
-    displayAs: "更新日期",
-    editable: false,
-    renderMethod: "datetime",
-    order: 10,
-    icon: "calendar-event",
-  },
-  {
-    name: "折叠状态",
-    rule: "fold",
-    matchMethod: "精确",
-    display: false,
-  },
-  {
-    name: "关联数据库",
-    rule: "custom-avs",
-    matchMethod: "精确",
-    display: false,
-  },
-  {
-    name: "关联数据库", // TODO: 显示为 tag-input readonly
-    rule: "custom-avs*",
-    matchMethod: "通配符",
-    display: false,
-  },
-];
+import type { Plugin } from "siyuan";
+import { inject, ref } from "vue";
+import {
+    compareDisplayRules,
+    DEFAULT_PANEL_SETTINGS,
+    matchDisplayRule,
+    normalizeDisplayRule,
+    normalizePanelSettings,
+} from "@/models/settings";
+import type { DisplayRule, PanelSettings } from "@/models/settings";
+import {
+    loadPanelSettings,
+    resetPanelSettings,
+    savePanelSettings,
+} from "@/services/settings";
+import { emitSettingsChanged } from "@/services/settingEvents";
 
 const pluginKey = "mux-siyuan-plugin-attributes-panel";
 
-export const useConfigStore = defineStore(pluginKey + "configurations", () => {
-  const plugin = inject("$plugin") as Plugin;
+function cloneDefaultSettings(): PanelSettings {
+    return normalizePanelSettings(DEFAULT_PANEL_SETTINGS);
+}
 
-  function useSiYuanStore<T>(key: string, defaultValue: T): Ref<UnwrapRef<T>> {
-    const data = ref(defaultValue);
+export const useConfigStore = defineStore(pluginKey + "settings", () => {
+    const plugin = inject("$plugin") as Plugin;
+    const pluginDataStore = {
+        loadData: (key: string) => plugin.loadData(key),
+        saveData: (key: string, value: unknown) => plugin.saveData(key, value),
+    };
 
-    async function load() {
-      const config = await plugin.loadData(key);
-      console.log("### load", key, config);
-      if (!config) {
-        await plugin.saveData(key, unref(defaultValue));
-        return defaultValue;
-      }
-      return config;
+    const settings = ref<PanelSettings>(cloneDefaultSettings());
+    const isReady = ref(false);
+    const isSaving = ref(false);
+    let initializationToken = 0;
+
+    async function persist(): Promise<void> {
+        isSaving.value = true;
+        try {
+            await savePanelSettings(pluginDataStore, settings.value);
+            emitSettingsChanged();
+        } finally {
+            isSaving.value = false;
+        }
     }
 
-    async function save() {
-      console.log("### save", key, unref(data));
-      await plugin.saveData(key, unref(data));
+    async function initialize(): Promise<void> {
+        const token = ++initializationToken;
+        try {
+            const loaded = await loadPanelSettings(pluginDataStore);
+            if (token !== initializationToken) return;
+
+            settings.value = loaded;
+            isReady.value = true;
+        } catch (error) {
+            if (token === initializationToken) isReady.value = true;
+            throw error;
+        }
     }
 
-    // Sync with SiYuan Settings
-    setTimeout(async () => {
-      data.value = await load();
+    async function updateSettings(next: PanelSettings): Promise<void> {
+        settings.value = normalizePanelSettings(next);
+        await persist();
+    }
 
-      // Save when change
-      watch(data, async () => {
-        await save();
-      });
-    });
+    async function updateRule(id: string, patch: Partial<Omit<DisplayRule, "id" | "version">>): Promise<void> {
+        const current = settings.value.rules.find((rule) => rule.id === id);
+        if (!current) throw new Error(`Setting rule not found: ${id}`);
 
-    return data;
-  }
+        const candidate = normalizeDisplayRule({ ...current, ...patch, id });
+        if (!candidate) throw new Error(`Setting rule not found: ${id}`);
 
-  // --- Setting Persist Storage ---
-  const configurations = useSiYuanStore("configurations", {
-    show: true,
-    showSettings: {
-      page: true,
-      block: false,
-    },
-  });
+        settings.value = {
+            ...settings.value,
+            rules: settings.value.rules.map((rule) => rule.id === id ? candidate : rule),
+        };
+        await persist();
+    }
 
-  // 控制数据可见性，可编辑性
-  const rules = useSiYuanStore("rules", defaultdisplayRules);
+    async function addRule(rule: Omit<DisplayRule, "id">): Promise<DisplayRule> {
+        const id = `user-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+        const candidate = normalizeDisplayRule({ ...rule, id });
+        if (!candidate) throw new Error("Invalid setting rule");
 
-  return {
-    configurations,
-    rules,
-  };
+        settings.value = { ...settings.value, rules: [...settings.value.rules, candidate] };
+        await persist();
+        return candidate;
+    }
+
+    async function removeRule(id: string): Promise<void> {
+        settings.value = {
+            ...settings.value,
+            rules: settings.value.rules.filter((rule) => rule.id !== id),
+        };
+        await persist();
+    }
+
+    async function moveRule(id: string, direction: -1 | 1): Promise<void> {
+        const sorted = [...settings.value.rules].sort(compareDisplayRules);
+        const index = sorted.findIndex((rule) => rule.id === id);
+        const targetIndex = index + direction;
+        if (index < 0 || targetIndex < 0 || targetIndex >= sorted.length) return;
+
+        const current = sorted[index];
+        const target = sorted[targetIndex];
+        const currentOrder = current.order;
+        current.order = target.order === currentOrder ? currentOrder + direction : target.order;
+        target.order = currentOrder;
+
+        settings.value = {
+            ...settings.value,
+            rules: settings.value.rules.map((rule) => {
+                if (rule.id === current.id) return current;
+                if (rule.id === target.id) return target;
+                return rule;
+            }),
+        };
+        await persist();
+    }
+
+    async function resetSettings(): Promise<void> {
+        settings.value = await resetPanelSettings(pluginDataStore);
+        emitSettingsChanged();
+    }
+
+    function findDocumentRule(name: string): DisplayRule | undefined {
+        return settings.value.rules.find((rule) => matchDisplayRule(rule, name));
+    }
+
+    function matchDocumentRule(name: string): DisplayRule | undefined {
+        return findDocumentRule(name);
+    }
+
+    function documentRules(): DisplayRule[] {
+        return [...settings.value.rules].sort(compareDisplayRules);
+    }
+
+    return {
+        settings,
+        isReady,
+        isSaving,
+        initialize,
+        updateSettings,
+        updateRule,
+        addRule,
+        removeRule,
+        moveRule,
+        resetSettings,
+        matchDocumentRule,
+        documentRules,
+    };
 });

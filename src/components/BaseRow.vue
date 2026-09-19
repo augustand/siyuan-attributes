@@ -7,6 +7,7 @@
             </template>
         </t-select>
         <slot />
+        <slot name="actions" />
     </div>
 </template>
 

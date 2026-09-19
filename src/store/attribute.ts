@@ -1,179 +1,215 @@
 import { defineStore } from "pinia";
-import { fetchPost } from "siyuan";
-import { inject, reactive, ref } from "vue";
-import { displayRule, useConfigStore } from "./rules";
+import { inject, ref } from "vue";
+import { useConfigStore } from "./rules";
+import { normalizeCustomAttributeKey } from "@/services/attributeKeys";
+import { isReadOnlyDocumentAttributeName } from "@/models/settings";
+import { fetchBlockAttrs, writeBlockAttrs } from "@/services/blockAttrs";
+import {
+    DOCUMENT_FIELD_OVERRIDES_ATTR,
+    applyDocumentFieldOverride,
+    isReservedDocumentAttributeKey,
+    readDocumentFieldOverridesFromAttrs,
+    serializeDocumentFieldOverrides,
+    type DocumentFieldOverride,
+    type DocumentFieldOverrides,
+} from "@/models/documentFieldOverrides";
 
 const pluginKey = "mux-siyuan-plugin-attributes-panel";
 
-export interface innerAttribute extends displayRule {
-  key: string;
-  value: string;
+export interface innerAttribute {
+    key: string;
+    value: string;
+    name: string;
+    displayAs: string;
+    editable: boolean;
+    renderMethod?: string;
+    order: number;
+    icon?: string;
 }
 
-// TODO: Database Data Type
+type AttributeRow = innerAttribute & { show: boolean };
 
 export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
-  // Data Flow Model
+    const documentId = ref(inject<string>("$docId", ""));
+    const builtInAttributes = ref([] as Array<innerAttribute>);
+    const allDocumentAttributes = ref([] as Array<innerAttribute>);
+    const documentFieldOverrides = ref<DocumentFieldOverrides>({ v: 1, fields: {} });
+    const isSaving = ref(false);
 
-  // SiYuan --> Inner Store --> UI
-  // UI --> API --> SiYuan --> Flush(Based on message --> function) --> UI
-  // UI --> Inner Store (UnReliable, based on components)
+    async function loadDocumentAttributes(): Promise<void> {
+        const attrs = await fetchBlockAttrs(documentId.value);
+        const overrides = readDocumentFieldOverridesFromAttrs(attrs);
+        documentFieldOverrides.value = overrides;
+        const next: Array<AttributeRow> = [];
 
-  // --- Attributes Data Storages ---
-  const documentId = inject("$docId");
-  const builtInAttributes = ref([] as Array<innerAttribute>); // 内置数据库属性
-  const dataBaseAttributes = reactive({}); // 当前文档所有数据库属性
-  const pageBlockAttributes = reactive({}); // 当前块属性
+        for (const [attributeName, attributeValue] of Object.entries(attrs)) {
+            if (isReservedDocumentAttributeKey(attributeName)) continue;
+            if (attributeName === "custom-avs" || attributeName.startsWith("custom-avs:")) continue;
 
-  function fetchInnerAttributes() {
-    fetchPost(
-      "/api/attr/getBlockAttrs",
-      {
-        id: documentId,
-      },
-      ({ data }) => {
-        // --- 根据规则过滤, 排序属性 ---
-        for (const attributeName in data) {
-          const attributeValue = data[attributeName];
+            const matched = matchRules(attributeName);
+            const override = overrides.fields[attributeName];
 
-          const rule = matchRules(attributeName);
-
-          if (rule) {
-            if (rule.display === true) {
-              builtInAttributes.value.push({
-                ...rule,
-                key: attributeName,
-                value: attributeValue,
-              });
-            }
-          } else {
-            builtInAttributes.value.push({
-              key: attributeName,
-              value: attributeValue,
-              name: attributeName,
-              displayAs: attributeName.replace("custom-", ""),
-              rule: attributeName,
-              renderMethod: "input",
-              matchMethod: "精确",
-              editable: true,
-              display: true,
-            });
-          }
-        }
-        // order
-        builtInAttributes.value.sort((a, b) => {
-          return a.order - b.order;
-        });
-
-        // attributes views check
-        if ("custom-avs" in data) {
-          fetchDBAttributes();
-        }
-      }
-    );
-  }
-
-  function fetchDBAttributes() {
-    fetchPost(
-      "/api/av/getAttributeViewKeys",
-      {
-        id: documentId,
-      },
-      ({ data }) => {
-        if (!data || data.length === 0) {
-          return;
-        }
-
-        for (const av of data) {
-          // 遍历所有的数据库，转换为关注的数据格式
-
-          const database = { ...av, fields: [] };
-          delete database.keyValues;
-
-          database.fields = av.keyValues.flatMap(({ key, values }) => {
-            // TODO: Convert Attributes by rules and orders via dragging
-            // 跳过主键
-            if (key.type === "block") {
-              return [];
-            }
-            const value = values[0];
-
-            let cellValue = value[value.type];
-            if (value.type === "select") {
-              cellValue = value.mSelect;
-            }
-
-            if (value.type === "select" || value.type === "mSelect") {
-              // change every cellValue {content: "aaa", color: "1"} -> index
-              // 暂时屏蔽name和content的区别，暂时屏蔽对象，注意如果以后content不唯一，这里绝对会出问题
-              if (cellValue instanceof Array) {
-                cellValue = {
-                  content: cellValue.map((v) => {
-                    return key.options.findIndex(
-                      (option) => option.name === v.content
-                    );
-                  }),
+            if (matched) {
+                const effective = applyDocumentFieldOverride(
+                    {
+                        display: matched.display,
+                        displayAs: matched.displayAs || attributeName,
+                        order: matched.order,
+                        editable: matched.editable,
+                    },
+                    override,
+                );
+                const hidden = !effective.display;
+                next.push({
+                    key: attributeName,
+                    value: attributeValue,
+                    name: matched.name,
+                    displayAs: effective.displayAs,
+                    editable: effective.editable && !hidden && !isReadOnlyDocumentAttributeName(attributeName),
+                    renderMethod: matched.renderMethod,
+                    order: effective.order,
+                    icon: matched.icon,
+                    show: effective.display,
+                });
+            } else if (attributeName.startsWith("custom-")) {
+                const base = {
+                    display: true,
+                    displayAs: attributeName.replace(/^custom-/, ""),
+                    order: 1000,
+                    editable: true,
                 };
-              } else {
-                cellValue = [];
-              }
+                const effective = applyDocumentFieldOverride(base, override);
+                const hidden = !effective.display;
+                next.push({
+                    key: attributeName,
+                    value: attributeValue,
+                    name: attributeName,
+                    displayAs: effective.displayAs,
+                    editable: effective.editable && !hidden,
+                    renderMethod: "input",
+                    order: effective.order,
+                    show: effective.display,
+                });
             }
-
-            return [
-              {
-                name: key.name,
-                cellID: value.id,
-                keyID: value.keyID,
-                rowID: value.blockID,
-                type: value.type,
-                value: cellValue,
-                options: key.options,
-              },
-            ];
-          });
-
-          dataBaseAttributes[av.avID] = database;
         }
 
-        console.log("Converted Attribute Views", dataBaseAttributes);
-      }
-    );
-  }
+        const sorted = next.sort((left, right) => left.order - right.order);
+        allDocumentAttributes.value = sorted.map(({ show: _show, ...row }) => row);
+        builtInAttributes.value = sorted.filter((row) => row.show).map(({ show: _show, ...row }) => row);
+    }
 
-  return {
-    documentId,
-    builtInAttributes,
-    dataBaseAttributes,
-    pageBlockAttributes, // Inner States
-    fetchInnerAttributes,
-    fetchDBAttributes, // Fetch Attribute Actions
-  };
+    async function setAttribute(
+        key: string,
+        value: string,
+        options: { requireCustom?: boolean } = {},
+    ): Promise<void> {
+        if (isReservedDocumentAttributeKey(key)) {
+            throw new Error(`Attribute key is reserved: ${DOCUMENT_FIELD_OVERRIDES_ATTR}`);
+        }
+        if (isReadOnlyDocumentAttributeName(key)) {
+            throw new Error(`Attribute key is read-only: ${key}`);
+        }
+
+        if (options.requireCustom) {
+            normalizeCustomAttributeKey(key);
+        }
+
+        isSaving.value = true;
+        try {
+            await writeBlockAttrs(documentId.value, { [key]: value });
+            await loadDocumentAttributes();
+        } finally {
+            isSaving.value = false;
+        }
+    }
+
+    async function createCustomAttribute(input: string, value: string): Promise<void> {
+        if (
+            isReservedDocumentAttributeKey(input)
+            || isReservedDocumentAttributeKey(`custom-${input}`)
+        ) {
+            throw new Error(`Attribute key is reserved: ${DOCUMENT_FIELD_OVERRIDES_ATTR}`);
+        }
+        const key = normalizeCustomAttributeKey(input);
+        if (isReservedDocumentAttributeKey(key)) {
+            throw new Error(`Attribute key is reserved: ${DOCUMENT_FIELD_OVERRIDES_ATTR}`);
+        }
+        isSaving.value = true;
+        try {
+            await writeBlockAttrs(documentId.value, { [key]: value });
+            await loadDocumentAttributes();
+        } finally {
+            isSaving.value = false;
+        }
+    }
+
+    const protectedDeleteKeys = new Set([
+        "id",
+        "updated",
+        "type",
+        "subtype",
+        "fold",
+        "scroll",
+        "title",
+        "icon",
+        "custom-avs",
+        DOCUMENT_FIELD_OVERRIDES_ATTR,
+    ]);
+
+    async function deleteCustomAttribute(key: string): Promise<void> {
+        if (
+            isReservedDocumentAttributeKey(key)
+            || protectedDeleteKeys.has(key)
+            || !key.startsWith("custom-")
+        ) {
+            throw new Error(`Attribute key is protected and cannot be deleted: ${key}`);
+        }
+
+        isSaving.value = true;
+        try {
+            const attrs = await fetchBlockAttrs(documentId.value);
+            const overrides = readDocumentFieldOverridesFromAttrs(attrs);
+            const nextFields = { ...overrides.fields };
+            delete nextFields[key];
+            const payload: Record<string, string> = { [key]: "" };
+            payload[DOCUMENT_FIELD_OVERRIDES_ATTR] = Object.keys(nextFields).length === 0
+                ? ""
+                : serializeDocumentFieldOverrides({ v: 1, fields: nextFields });
+            await writeBlockAttrs(documentId.value, payload);
+            await loadDocumentAttributes();
+        } finally {
+            isSaving.value = false;
+        }
+    }
+
+    async function saveDocumentFieldOverrides(fields: Record<string, DocumentFieldOverride>): Promise<void> {
+        isSaving.value = true;
+        try {
+            const value = Object.keys(fields).length === 0
+                ? ""
+                : serializeDocumentFieldOverrides({ v: 1, fields });
+            await writeBlockAttrs(documentId.value, { [DOCUMENT_FIELD_OVERRIDES_ATTR]: value });
+            await loadDocumentAttributes();
+        } finally {
+            isSaving.value = false;
+        }
+    }
+
+    return {
+        documentId,
+        builtInAttributes,
+        allDocumentAttributes,
+        documentFieldOverrides,
+        isSaving,
+        loadDocumentAttributes,
+        createCustomAttribute,
+        setAttribute,
+        deleteCustomAttribute,
+        saveDocumentFieldOverrides,
+    };
 });
 
 function matchRules(attributeName: string) {
-  const configStore = useConfigStore();
-  const rules = configStore.rules;
-
-  return rules.find((rule) => {
-    if (rule.matchMethod === "精确" && rule.rule === attributeName) {
-      return true;
-    }
-
-    if (rule.matchMethod === "通配符" && matchWild(attributeName, rule.rule)) {
-      return true;
-    }
-
-    if (rule.matchMethod === "正则" && matchRegex(attributeName, rule.rule)) {
-      return true;
-    }
-  });
-}
-
-function matchRegex(attributeName: string, rule: string) {
-  return false;
-}
-
-function matchWild(attributeName: string, rule: string) {
-  // Wanna imporve this? goto Leetcode #44
-  return false;
+    const configStore = useConfigStore();
+    return configStore.matchDocumentRule(attributeName);
 }
