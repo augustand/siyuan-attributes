@@ -16,7 +16,7 @@ Feedback and suggestions welcome.
 4. Dark mode support
 5. Block-level attribute panel is not implemented yet
 
-The plugin stores per-document overrides in the reserved attribute `custom-mux-attrs__doc__fields`, which is hidden from the panel.
+The plugin stores per-document overrides in the reserved attribute `custom-mux-attrs-doc-fields`, which is hidden from the panel.
 
 ### 为什么开发这个插件
 

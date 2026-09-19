@@ -8,7 +8,7 @@ import {
     DOCUMENT_FIELD_OVERRIDES_ATTR,
     applyDocumentFieldOverride,
     isReservedDocumentAttributeKey,
-    parseDocumentFieldOverrides,
+    readDocumentFieldOverridesFromAttrs,
     serializeDocumentFieldOverrides,
     type DocumentFieldOverride,
     type DocumentFieldOverrides,
@@ -38,7 +38,7 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
 
     async function loadDocumentAttributes(): Promise<void> {
         const attrs = await fetchBlockAttrs(documentId.value);
-        const overrides = parseDocumentFieldOverrides(attrs[DOCUMENT_FIELD_OVERRIDES_ATTR]);
+        const overrides = readDocumentFieldOverridesFromAttrs(attrs);
         documentFieldOverrides.value = overrides;
         const next: Array<AttributeRow> = [];
 
@@ -168,7 +168,7 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
         isSaving.value = true;
         try {
             const attrs = await fetchBlockAttrs(documentId.value);
-            const overrides = parseDocumentFieldOverrides(attrs[DOCUMENT_FIELD_OVERRIDES_ATTR]);
+            const overrides = readDocumentFieldOverridesFromAttrs(attrs);
             const nextFields = { ...overrides.fields };
             delete nextFields[key];
             const payload: Record<string, string> = { [key]: "" };

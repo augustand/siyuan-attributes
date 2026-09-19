@@ -1,4 +1,8 @@
-export const DOCUMENT_FIELD_OVERRIDES_ATTR = "custom-mux-attrs__doc__fields";
+/** Valid SiYuan custom attr: custom-[a-z][a-z0-9-]* (no underscores). */
+export const DOCUMENT_FIELD_OVERRIDES_ATTR = "custom-mux-attrs-doc-fields";
+
+/** Legacy key with underscores — rejected by SiYuan setBlockAttrs; migrate away. */
+export const DOCUMENT_FIELD_OVERRIDES_ATTR_LEGACY = "custom-mux-attrs__doc__fields";
 
 export interface DocumentFieldOverride {
   display: boolean;
@@ -13,7 +17,7 @@ export interface DocumentFieldOverrides {
 }
 
 export function isReservedDocumentAttributeKey(name: string): boolean {
-  return name === DOCUMENT_FIELD_OVERRIDES_ATTR;
+  return name === DOCUMENT_FIELD_OVERRIDES_ATTR || name === DOCUMENT_FIELD_OVERRIDES_ATTR_LEGACY;
 }
 
 function bool(value: unknown, fallback: boolean): boolean {
@@ -63,6 +67,19 @@ export function parseDocumentFieldOverrides(raw: unknown): DocumentFieldOverride
     if (override) fields[key] = override;
   }
   return { v: 1, fields };
+}
+
+/** Prefer the valid key; fall back to legacy underscore key if present. */
+export function readDocumentFieldOverridesFromAttrs(
+  attrs: Record<string, string>,
+): DocumentFieldOverrides {
+  if (Object.prototype.hasOwnProperty.call(attrs, DOCUMENT_FIELD_OVERRIDES_ATTR)) {
+    return parseDocumentFieldOverrides(attrs[DOCUMENT_FIELD_OVERRIDES_ATTR]);
+  }
+  if (Object.prototype.hasOwnProperty.call(attrs, DOCUMENT_FIELD_OVERRIDES_ATTR_LEGACY)) {
+    return parseDocumentFieldOverrides(attrs[DOCUMENT_FIELD_OVERRIDES_ATTR_LEGACY]);
+  }
+  return { v: 1, fields: {} };
 }
 
 export function serializeDocumentFieldOverrides(data: DocumentFieldOverrides): string {
