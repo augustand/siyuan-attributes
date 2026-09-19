@@ -9,12 +9,72 @@ import { createPinia } from "pinia";
 import App from "./App.vue";
 import "tdesign-vue-next/es/style/index.css";
 import SettingPage from "./views/SettingPage.vue";
+import BlockAttributeDialog from "./views/BlockAttributeDialog.vue";
 import { PanelRegistry } from "@/services/panelRegistry";
+import { BlockDialogHost } from "@/services/blockDialogHost";
+import {
+  resolveBlockIdFromBlockElements,
+  resolveBlockIdFromContentTarget,
+} from "@/services/blockMenu";
 
 export default class PluginSample extends Plugin {
   private readonly panelRegistry = new PanelRegistry();
+  private readonly blockDialogHost = new BlockDialogHost();
   private settingApp?: VueApp<Element>;
   private settingPageDiv?: HTMLDivElement;
+
+  private openBlockAttributeDialog(blockId: string): void {
+    const id = blockId.trim();
+    if (!id) return;
+
+    this.blockDialogHost.open((host) => {
+      const element = document.createElement("div");
+      host.append(element);
+      const app = createApp(BlockAttributeDialog);
+      const pinia = createPinia();
+      app.provide("$plugin", this);
+      app.provide("$EventBus", this.eventBus);
+      app.provide("$docId", id);
+      app.provide("$panelMode", "block");
+      app.provide("$closeBlockDialog", () => this.blockDialogHost.close());
+      app.use(pinia);
+      app.mount(element);
+      return { app, element };
+    });
+  }
+
+  private readonly handleClickBlockIcon = (event: {
+    detail: { menu: { addItem: (item: Record<string, unknown>) => void }; blockElements?: HTMLElement[] };
+  }) => {
+    const blockId = resolveBlockIdFromBlockElements(event.detail.blockElements ?? []);
+    if (!blockId) return;
+    const i18n = this.i18n as { blockDialog?: { menuLabel?: string } } | undefined;
+    event.detail.menu.addItem({
+      icon: "iconAttributePanelSettings",
+      label: i18n?.blockDialog?.menuLabel ?? "属性面板",
+      click: () => this.openBlockAttributeDialog(blockId),
+    });
+  };
+
+  private readonly handleOpenMenuContent = (event: {
+    detail: {
+      menu: { addItem: (item: Record<string, unknown>) => void };
+      element?: HTMLElement;
+      // some SiYuan builds pass the originating event
+      event?: Event;
+    };
+  }) => {
+    const fromEl = resolveBlockIdFromContentTarget(event.detail.element ?? null);
+    const fromEvent = resolveBlockIdFromContentTarget(event.detail.event?.target ?? null);
+    const blockId = fromEl ?? fromEvent;
+    if (!blockId) return;
+    const i18n = this.i18n as { blockDialog?: { menuLabel?: string } } | undefined;
+    event.detail.menu.addItem({
+      icon: "iconAttributePanelSettings",
+      label: i18n?.blockDialog?.menuLabel ?? "属性面板",
+      click: () => this.openBlockAttributeDialog(blockId),
+    });
+  };
 
   private initializeSettingDialog(): void {
     this.settingPageDiv = document.createElement("div");
@@ -73,11 +133,16 @@ export default class PluginSample extends Plugin {
   onLayoutReady() {
     this.eventBus.on("loaded-protyle-static", this.handleLoadedProtyle);
     this.eventBus.on("destroy-protyle", this.handleDestroyProtyle);
+    this.eventBus.on("click-blockicon", this.handleClickBlockIcon);
+    this.eventBus.on("open-menu-content", this.handleOpenMenuContent);
   }
 
   async onunload() {
     this.eventBus.off("loaded-protyle-static", this.handleLoadedProtyle);
     this.eventBus.off("destroy-protyle", this.handleDestroyProtyle);
+    this.eventBus.off("click-blockicon", this.handleClickBlockIcon);
+    this.eventBus.off("open-menu-content", this.handleOpenMenuContent);
+    this.blockDialogHost.close();
     this.panelRegistry.unmountAll();
     this.settingApp?.unmount();
     this.settingApp = undefined;
