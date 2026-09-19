@@ -24,6 +24,8 @@
     "github": ""
   },
   "keywords": [
-    "attributes", "database"
+    "attributes",
+    "document",
+    "panel"
   ]
 }

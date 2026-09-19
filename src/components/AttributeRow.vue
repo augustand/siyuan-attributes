@@ -1,5 +1,5 @@
 <template>
-    <BaseRow :name="attribute?.displayAs || attributeKey" :siyuan-key="attributeKey">
+    <BaseRow :name="attribute?.displayAs || attributeKey" :icon="attribute?.icon || 'view-list'">
         <template v-if="method === 'input'">
             <t-input
                 v-model="draft"

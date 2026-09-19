@@ -8,7 +8,6 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import "tdesign-vue-next/es/style/index.css";
-import { DraggablePlugin } from "@braks/revue-draggable";
 import SettingPage from "./views/SettingPage.vue";
 import { PanelRegistry } from "@/services/panelRegistry";
 
@@ -53,6 +52,11 @@ export default class PluginSample extends Plugin {
     this.mountAttributePanel(event.detail.protyle);
   };
 
+  private readonly handleDestroyProtyle = (event: { detail: { protyle: IProtyle } }) => {
+    const docId = event.detail?.protyle?.block?.id;
+    if (docId) this.panelRegistry.unmount(docId);
+  };
+
   async onload() {
     this.addIcons(`<symbol id="iconAttributePanelSettings" viewBox="0 0 24 24">
       <path fill="currentColor" d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7Zm7.4-3.5c0 .5 0 1-.1 1.4l2.1 1.7-2 3.4-2.5-1a7.6 7.6 0 0 1-2.4 1.4l-.4 2.6h-4l-.4-2.6a7.6 7.6 0 0 1-2.4-1.4l-2.5 1-2-3.4 2.1-1.7a8 8 0 0 1 0-2.8L2.8 9.9l2-3.4 2.5 1c.7-.6 1.5-1 2.4-1.4L10.1 3h4l.4 2.6c.9.4 1.7.8 2.4 1.4l2.5-1 2 3.4-2.1 1.7c.1.4.1.9.1 1.4Z"/>
@@ -68,10 +72,12 @@ export default class PluginSample extends Plugin {
 
   onLayoutReady() {
     this.eventBus.on("loaded-protyle-static", this.handleLoadedProtyle);
+    this.eventBus.on("destroy-protyle", this.handleDestroyProtyle);
   }
 
   async onunload() {
     this.eventBus.off("loaded-protyle-static", this.handleLoadedProtyle);
+    this.eventBus.off("destroy-protyle", this.handleDestroyProtyle);
     this.panelRegistry.unmountAll();
     this.settingApp?.unmount();
     this.settingApp = undefined;
@@ -112,7 +118,6 @@ export default class PluginSample extends Plugin {
     app.provide("$docId", docId);
 
     app.use(pinia);
-    app.use(DraggablePlugin);
     app.mount(newDiv);
     this.panelRegistry.mount(docId, app, newDiv);
   }

@@ -1,19 +1,9 @@
 {
   "settings": {
     "title": "Attribute Panel Settings",
-    "brandSubtitle": "Document attributes",
-    "documentRules": "Document rules",
+    "documentRules": "Document attribute rules",
     "general": "General",
     "showPanel": "Show attribute panel",
-    "showPanelHelp": "Hide every attribute panel below documents.",
-    "rules": "Display rules",
-    "changesPending": "Save your changes",
-    "searchRules": "Search rules or attribute names",
-    "noMatchingRules": "No matching rules",
-    "edit": "Edit",
-    "editRule": "Edit rule",
-    "ruleName": "Rule name",
-    "selectRule": "Select a rule to edit",
     "addRule": "Add rule",
     "help": "Document rules match attribute names and control display name, visibility, editability, and order. These are global defaults; per-document exceptions live in the panel Field settings dialog.",
     "noRules": "No rules",
@@ -31,8 +21,6 @@
     "renderTag": "Tags",
     "renderDatetime": "Date & time",
     "renderLink": "Link / ID",
-    "scope": "Scope",
-    "document": "Document attributes",
     "order": "Order",
     "display": "Display",
     "editable": "Editable",
@@ -78,20 +66,7 @@
     "deleteSuccess": "Deleted",
     "deleteFailed": "Failed to delete"
   },
-  "addTopBarIcon": "Add a top bar icon by plugin",
   "cancel": "Cancel",
   "save": "Save",
-  "byeMenu": "Bye, Menu!",
-  "helloPlugin": "Hello, Plugin!",
-  "byePlugin": "Bye, Plugin!",
-  "showDialog": "Show dialog",
-  "removedData": "Data deleted",
-  "confirmRemove": "Confirm to delete the data in ${name}?",
-  "insertEmoji": "Insert Emoji",
-  "removeSpace": "Remove Space",
-  "getTab": "Print out all opened custom tabs in the debugger",
-  "name": "SiYuan",
-  "hello": {
-    "makesure": "Before using this template, please read the <a href=\"https://github.com/siyuan-note/plugin-sample\">offical sample</a>, make sure that you've known about the pipeline for plugin developing."
-  }
+  "close": "Close"
 }

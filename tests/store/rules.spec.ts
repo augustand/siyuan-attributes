@@ -79,4 +79,40 @@ describe("settings store", () => {
 
     expect(store.settings).toEqual(await import("@/models/settings").then((module) => module.DEFAULT_PANEL_SETTINGS));
   });
+
+  it("prefers exact matches over wildcard/regex when resolving a rule", async () => {
+    const store = initializeStore();
+    await store.initialize();
+    await store.updateSettings({
+      ...store.settings,
+      rules: [
+        {
+          id: "wild",
+          name: "Wild",
+          rule: "custom-*",
+          matchMethod: "wildcard",
+          scope: "document",
+          display: true,
+          displayAs: "Wild",
+          editable: true,
+          renderMethod: "input",
+          order: 1,
+        },
+        {
+          id: "exact",
+          name: "Exact",
+          rule: "custom-priority",
+          matchMethod: "exact",
+          scope: "document",
+          display: true,
+          displayAs: "Exact",
+          editable: true,
+          renderMethod: "input",
+          order: 99,
+        },
+      ],
+    });
+
+    expect(store.matchDocumentRule("custom-priority")?.id).toBe("exact");
+  });
 });

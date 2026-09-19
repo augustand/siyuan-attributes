@@ -1,19 +1,9 @@
 {
   "settings": {
     "title": "属性面板设置",
-    "brandSubtitle": "文档属性",
-    "documentRules": "文档规则",
+    "documentRules": "文档属性规则",
     "general": "通用",
     "showPanel": "显示属性面板",
-    "showPanelHelp": "关闭后，所有文档下方的属性面板都会隐藏。",
-    "rules": "显示规则",
-    "changesPending": "修改后点击保存",
-    "searchRules": "搜索规则或属性名",
-    "noMatchingRules": "没有匹配的规则",
-    "edit": "编辑",
-    "editRule": "编辑规则",
-    "ruleName": "规则名称",
-    "selectRule": "选择左侧规则后可编辑",
     "addRule": "添加规则",
     "help": "按属性名匹配文档属性，可控制显示名、显示状态、可编辑性和排序。此处为全局默认；单篇文档特例请在属性面板的「字段设置」中配置。",
     "noRules": "暂无规则",
@@ -31,8 +21,6 @@
     "renderTag": "标签",
     "renderDatetime": "日期时间",
     "renderLink": "链接/ID",
-    "scope": "作用范围",
-    "document": "文档属性",
     "order": "排序值",
     "display": "显示",
     "editable": "可编辑",
@@ -78,20 +66,7 @@
     "deleteSuccess": "删除成功",
     "deleteFailed": "删除失败"
   },
-  "addTopBarIcon": "使用插件添加一个顶栏按钮",
   "cancel": "取消",
   "save": "保存",
-  "byeMenu": "再见，菜单！",
-  "helloPlugin": "你好，插件！",
-  "byePlugin": "再见，插件！",
-  "showDialog": "弹出一个对话框",
-  "removedData": "数据已删除",
-  "confirmRemove": "确认删除 ${name} 中的数据？",
-  "insertEmoji": "插入表情",
-  "removeSpace": "移除空格",
-  "getTab": "在日志中打印出已打开的所有自定义页签",
-  "name": "思源",
-  "hello": {
-    "makesure": "使用这个模板之前，请阅读<a href=\"https://github.com/siyuan-note/plugin-sample\">官方教程</a>, 确保自己已经理解了插件的基本开发流程。"
-  }
+  "close": "关闭"
 }

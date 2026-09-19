@@ -21,7 +21,6 @@ setI18n(plugin?.i18n as Record<string, unknown> | undefined);
 const attributeStore = useAttributesStore();
 const settingsStore = useConfigStore();
 let refreshTimer: ReturnType<typeof setTimeout> | undefined;
-let refreshInterval: ReturnType<typeof setInterval> | undefined;
 const removeSettingsChangedListener = onSettingsChanged(() => {
     void reloadFromSettings();
 });
@@ -49,12 +48,10 @@ onMounted(() => {
         });
     eventBus?.on("loaded-protyle-dynamic", handleProtyle);
     eventBus?.on("switch-protyle", handleProtyle);
-    refreshInterval = setInterval(refreshAttributes, 5000);
 });
 
 onUnmounted(() => {
     clearTimeout(refreshTimer);
-    clearInterval(refreshInterval);
     eventBus?.off("loaded-protyle-dynamic", handleProtyle);
     eventBus?.off("switch-protyle", handleProtyle);
     removeSettingsChangedListener();

@@ -124,7 +124,20 @@ export const useConfigStore = defineStore(pluginKey + "settings", () => {
     }
 
     function findDocumentRule(name: string): DisplayRule | undefined {
-        return settings.value.rules.find((rule) => matchDisplayRule(rule, name));
+        const matches = settings.value.rules.filter((rule) => matchDisplayRule(rule, name));
+        if (matches.length === 0) return undefined;
+
+        const specificity = (method: DisplayRule["matchMethod"]): number => {
+            if (method === "exact") return 0;
+            if (method === "wildcard") return 1;
+            return 2;
+        };
+
+        return [...matches].sort((left, right) => {
+            const bySpecificity = specificity(left.matchMethod) - specificity(right.matchMethod);
+            if (bySpecificity !== 0) return bySpecificity;
+            return compareDisplayRules(left, right);
+        })[0];
     }
 
     function matchDocumentRule(name: string): DisplayRule | undefined {
