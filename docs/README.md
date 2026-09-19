@@ -4,7 +4,8 @@ Note: The current version focuses on document attributes. Database field feature
 
 ### Coming soon
 
-- [Inline block-level attributes](https://github.com/InEase/SiYuan-Attributes-Panel/issues/7)
+- Block menu dialog is available: open **Attribute panel** from the block gutter menu or content context menu to edit that block's `custom-*` attributes
+- [Inline block-level attributes](https://github.com/InEase/SiYuan-Attributes-Panel/issues/7) (tracked)
 
 Feedback and suggestions welcome.
 
@@ -14,7 +15,7 @@ Feedback and suggestions welcome.
 2. **Attribute Panel Settings** (plugin settings): global default rules (display name, visibility, editability, order, wildcards/regex)
 3. **Field settings** (in-panel): overrides for **this document only**; other fields still follow global defaults
 4. Dark mode support
-5. Block-level attribute panel is not implemented yet
+5. Open a dialog from the block gutter menu (and content context menu) to edit that block's `custom-*` attributes; uses global rules; no per-block field overrides
 
 The plugin stores per-document overrides in the reserved attribute `custom-mux-attrs-doc-fields`, which is hidden from the panel.
 
@@ -45,11 +46,12 @@ The plugin stores per-document overrides in the reserved attribute `custom-mux-a
 3. `/api/attr/setBlockAttrs`：用于设置属性
 4. `EventBus`监听：`loaded-protyle-static`，用于插入属性面板
 5. `EventBus`监听：`loaded-protyle-dynamic`、`switch-protyle`，用于刷新属性面板
+6. `EventBus`监听：`click-blockicon`、`open-menu-content`，用于在块菜单中注入**属性面板**入口；对话框挂载于 `.mux-block-attr-dialog`
 
 #### 插件权限
 
 * **关于数据**：本插件对您数据的修改仅限于**在用户操作下**，根据用户指示，对指定块的属性做出指定的修改，不会修改其他任何内容
-* **关于UI**：本插件对用户界面的修改仅限于在文档标题下增加一个属性面板，对其他部分均无任何影响
+* **关于UI**：本插件在文档标题下增加属性面板；块级编辑通过块菜单打开的对话框（挂载于 `.mux-block-attr-dialog`），不修改其他界面区域
 * **关于联网**：本插件完全本地，不包括任何外网通信
 
 ### 实现原理
