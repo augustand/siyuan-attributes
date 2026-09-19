@@ -68,5 +68,12 @@
   },
   "cancel": "Cancel",
   "save": "Save",
-  "close": "Close"
+  "close": "Close",
+  "blockDialog": {
+    "menuLabel": "Attribute panel",
+    "title": "Block attributes",
+    "close": "Close",
+    "copyId": "Copy ID",
+    "loadFailed": "Failed to load block attributes"
+  }
 }

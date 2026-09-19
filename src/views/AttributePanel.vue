@@ -3,6 +3,7 @@
         <div class="panel-toolbar">
             <span class="panel-title">{{ labels.panel }}</span>
             <t-button
+                v-if="panelMode !== 'block'"
                 size="small"
                 theme="default"
                 variant="text"
@@ -18,7 +19,7 @@
         <BuiltInAttrs />
 
         <FieldSettingsDialog
-            v-if="showFieldSettings"
+            v-if="panelMode !== 'block' && showFieldSettings"
             @saved="refreshPanel"
             @close="showFieldSettings = false"
         />
@@ -26,11 +27,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { inject, ref } from 'vue';
 import { useAttributesStore } from '@/store/attribute';
 import FieldSettingsDialog from '@/components/FieldSettingsDialog.vue';
 import { getI18nText } from '@/services/i18n';
 
+const panelMode = inject<"document" | "block">("$panelMode", "document");
 const attributeStore = useAttributesStore();
 const showFieldSettings = ref(false);
 

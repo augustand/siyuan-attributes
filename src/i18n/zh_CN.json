@@ -68,5 +68,12 @@
   },
   "cancel": "取消",
   "save": "保存",
-  "close": "关闭"
+  "close": "关闭",
+  "blockDialog": {
+    "menuLabel": "属性面板",
+    "title": "块属性",
+    "close": "关闭",
+    "copyId": "复制 ID",
+    "loadFailed": "加载块属性失败"
+  }
 }
