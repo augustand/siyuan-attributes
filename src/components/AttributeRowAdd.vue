@@ -72,7 +72,9 @@ const saveText = getI18nText('attributes.save', '保存');
 const cancelText = getI18nText('cancel', '取消');
 
 const canSave = computed(() => {
-    return isNormalizableCustomAttributeKey(key.value) && !store.isSaving;
+    return isNormalizableCustomAttributeKey(key.value)
+        && value.value.trim().length > 0
+        && !store.isSaving;
 });
 
 const actualKey = computed(() => {
