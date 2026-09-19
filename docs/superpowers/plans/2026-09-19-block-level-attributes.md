@@ -1,6 +1,6 @@
 # Block-Level Attribute Panel Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Open a modal attribute dialog from the SiYuan block menu that reuses the document panel’s CRUD + global rules for an arbitrary block id.
 
@@ -52,7 +52,7 @@
   - Prefer first element with non-empty `dataset.nodeId` (or `getAttribute("data-node-id")`).
   - Content target: walk `closest("[data-node-id]")` from the event target if it is a Node.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/services/blockMenu.spec.ts`:
 
@@ -94,13 +94,13 @@ describe("blockMenu", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm run test -- tests/services/blockMenu.spec.ts`
 
 Expected: FAIL (module not found)
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `src/services/blockMenu.ts`:
 
@@ -132,13 +132,13 @@ export function resolveBlockIdFromContentTarget(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npm run test -- tests/services/blockMenu.spec.ts`
 
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/services/blockMenu.ts tests/services/blockMenu.spec.ts
@@ -166,7 +166,7 @@ EOF
   - Host root class: `mux-block-attr-dialog` appended to `document.body`
 - Consumes: Vue `App` unmount + element remove (same cleanup idea as `PanelRegistry`, but one slot and a fixed DOM wrapper)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/services/blockDialogHost.spec.ts`:
 
@@ -202,13 +202,13 @@ describe("BlockDialogHost", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm run test -- tests/services/blockDialogHost.spec.ts`
 
 Expected: FAIL (module not found)
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `src/services/blockDialogHost.ts`:
 
@@ -247,13 +247,13 @@ export class BlockDialogHost {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npm run test -- tests/services/blockDialogHost.spec.ts`
 
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/services/blockDialogHost.ts tests/services/blockDialogHost.spec.ts
@@ -279,7 +279,7 @@ EOF
 - Produces: dialog UI; initializes settings + loads attrs (same responsibilities as `App.vue`, without `showPanel` gate and without protyle refresh listeners)
 - `AttributePanel`: if `$panelMode === "block"`, do not render the「字段设置」button / `FieldSettingsDialog`
 
-- [ ] **Step 1: Add i18n keys**
+- [x] **Step 1: Add i18n keys**
 
 In `src/i18n/zh_CN.json` add under a new top-level `"blockDialog"` object (and keep existing keys intact):
 
@@ -305,7 +305,7 @@ In `src/i18n/en_US.json`:
 }
 ```
 
-- [ ] **Step 2: Hide field settings in block mode**
+- [x] **Step 2: Hide field settings in block mode**
 
 In `src/views/AttributePanel.vue`:
 
@@ -331,7 +331,7 @@ In `src/views/AttributePanel.vue`:
 />
 ```
 
-- [ ] **Step 3: Create `BlockAttributeDialog.vue`**
+- [x] **Step 3: Create `BlockAttributeDialog.vue`**
 
 Create `src/views/BlockAttributeDialog.vue`:
 
@@ -482,13 +482,13 @@ onUnmounted(() => {
 </style>
 ```
 
-- [ ] **Step 4: Typecheck the Vue pieces**
+- [x] **Step 4: Typecheck the Vue pieces**
 
 Run: `npm run typecheck`
 
 Expected: PASS (or only pre-existing unrelated errors — fix any introduced by this task)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/views/BlockAttributeDialog.vue src/views/AttributePanel.vue src/i18n/zh_CN.json src/i18n/en_US.json
@@ -510,7 +510,7 @@ EOF
 - Consumes: `BlockDialogHost`, `resolveBlockIdFromBlockElements`, `resolveBlockIdFromContentTarget`, `BlockAttributeDialog`
 - Produces: menu items on `click-blockicon` and `open-menu-content`; `openBlockAttributeDialog(blockId)`; cleanup on `onunload`
 
-- [ ] **Step 1: Implement open helper + menu handlers in `src/index.ts`**
+- [x] **Step 1: Implement open helper + menu handlers in `src/index.ts`**
 
 Add imports:
 
@@ -602,7 +602,7 @@ const i18n = this.i18n as { blockDialog?: { menuLabel?: string } } | undefined;
 label: i18n?.blockDialog?.menuLabel ?? "属性面板",
 ```
 
-- [ ] **Step 2: Run typecheck + targeted tests**
+- [x] **Step 2: Run typecheck + targeted tests**
 
 Run:
 
@@ -613,7 +613,7 @@ npm run test -- tests/services/blockMenu.spec.ts tests/services/blockDialogHost.
 
 Expected: PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/index.ts
@@ -632,7 +632,7 @@ EOF
 - Modify: `docs/README_zh_CN.md`
 - Modify: `docs/README.md`
 
-- [ ] **Step 1: Update Chinese README**
+- [x] **Step 1: Update Chinese README**
 
 In `docs/README_zh_CN.md`:
 
@@ -640,17 +640,17 @@ In `docs/README_zh_CN.md`:
 2. In「插件功能」, replace「块级属性面板尚未实现」with: 从块标菜单（及内容右键菜单）打开对话框，编辑该块的 `custom-*` 属性；使用全局规则；不支持块级字段覆盖。
 3. In EventBus / UI notes, mention `click-blockicon` / `open-menu-content` and that the dialog mounts under `.mux-block-attr-dialog`.
 
-- [ ] **Step 2: Update English README**
+- [x] **Step 2: Update English README**
 
 In `docs/README.md`, update the issue #7 bullet so it no longer reads as wholly unimplemented: dialog from block menu is shipped; inline display may remain future work if that was the original issue title.
 
-- [ ] **Step 3: Full verify**
+- [x] **Step 3: Full verify**
 
 Run: `npm run verify`
 
 Expected: typecheck + tests + build all PASS
 
-- [ ] **Step 4: Manual smoke (in SiYuan after `npm run build` / reload)**
+- [x] **Step 4: Manual smoke (in SiYuan after `npm run build` / reload)**
 
 1. Open a document with the title panel visible; confirm it still works.
 2. Click a leaf block’s gutter icon → **属性面板** → dialog shows that block’s attrs.
@@ -659,7 +659,7 @@ Expected: typecheck + tests + build all PASS
 5. Confirm no「字段设置」button in the block dialog.
 6. Close dialog → no leftover `.mux-block-attr-dialog`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/README_zh_CN.md docs/README.md
