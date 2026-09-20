@@ -57,6 +57,8 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
                         displayAs: matched.displayAs || attributeName,
                         order: matched.order,
                         editable: matched.editable,
+                        renderMethod: matched.renderMethod ?? "input",
+                        options: matched.options ?? [],
                     },
                     override,
                 );
@@ -67,8 +69,8 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
                     name: matched.name,
                     displayAs: effective.displayAs,
                     editable: effective.editable && !hidden && !isReadOnlyDocumentAttributeName(attributeName),
-                    renderMethod: matched.renderMethod ?? "input",
-                    options: matched.options ?? [],
+                    renderMethod: effective.renderMethod ?? "input",
+                    options: effective.options ?? [],
                     order: effective.order,
                     icon: matched.icon,
                     show: effective.display,
@@ -79,6 +81,8 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
                     displayAs: attributeName.replace(/^custom-/, ""),
                     order: 1000,
                     editable: true,
+                    renderMethod: "input" as const,
+                    options: [] as string[],
                 };
                 const effective = applyDocumentFieldOverride(base, override);
                 const hidden = !effective.display;
@@ -88,8 +92,8 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
                     name: attributeName,
                     displayAs: effective.displayAs,
                     editable: effective.editable && !hidden,
-                    renderMethod: "input",
-                    options: [],
+                    renderMethod: effective.renderMethod ?? "input",
+                    options: effective.options ?? [],
                     order: effective.order,
                     show: effective.display,
                 });

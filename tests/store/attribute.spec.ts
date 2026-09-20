@@ -77,6 +77,33 @@ describe("attributes store CRUD", () => {
     expect(row?.displayAs).toBe("标签");
   });
 
+  it("lets document overrides replace renderMethod and options", async () => {
+    fetchBlockAttrs.mockResolvedValue({
+      id: "doc",
+      "custom-tags": "a,b",
+      [DOCUMENT_FIELD_OVERRIDES_ATTR]: JSON.stringify({
+        v: 1,
+        fields: {
+          "custom-tags": {
+            display: true,
+            displayAs: "tags",
+            order: 5,
+            editable: true,
+            renderMethod: "tag-input",
+            options: [],
+          },
+        },
+      }),
+    });
+    const store = initializeStore();
+    await store.loadDocumentAttributes();
+
+    const row = store.builtInAttributes.find((item) => item.key === "custom-tags");
+    expect(row?.renderMethod).toBe("tag-input");
+    expect(row?.displayAs).toBe("tags");
+    expect(row?.order).toBe(5);
+  });
+
   it("keeps hidden document attributes available to field settings", async () => {
     fetchBlockAttrs.mockResolvedValue({
       id: "doc",

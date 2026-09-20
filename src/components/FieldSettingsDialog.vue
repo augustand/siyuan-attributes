@@ -53,12 +53,33 @@
                                             :disabled="isDocumentKeyReadonly(item.key)"
                                         />
                                     </label>
-                                    <label class="render-method-readonly">
-                                        <span>{{ labels.renderMethod }}</span>
-                                        <code>{{ renderMethodLabel(item.key) }}</code>
+                                    <label>
+                                        <span>{{ labels.editMethod }}</span>
+                                        <t-select v-model="item.draft.renderMethod">
+                                            <t-option value="input" :label="labels.renderInput" />
+                                            <t-option value="tag-input" :label="labels.renderTag" />
+                                            <t-option value="datetime" :label="labels.renderDatetime" />
+                                            <t-option value="link" :label="labels.renderLink" />
+                                            <t-option value="select" :label="labels.renderSelect" />
+                                            <t-option value="multi-select" :label="labels.renderMultiSelect" />
+                                            <t-option value="date" :label="labels.renderDate" />
+                                            <t-option value="checkbox" :label="labels.renderCheckbox" />
+                                            <t-option value="number" :label="labels.renderNumber" />
+                                        </t-select>
+                                    </label>
+                                    <label
+                                        v-if="item.draft.renderMethod === 'select' || item.draft.renderMethod === 'multi-select'"
+                                        class="options-field"
+                                    >
+                                        <span>{{ labels.options }}</span>
+                                        <t-tag-input
+                                            v-model="item.draft.options"
+                                            :placeholder="labels.optionsHint"
+                                            clearable
+                                        />
                                     </label>
                                 </div>
-                                <p class="render-method-help">{{ labels.renderMethodHelp }}</p>
+                                <p class="render-method-help">{{ labels.typeOverrideHelp }}</p>
                                 <div class="field-footer">
                                     <p v-if="isDocumentKeyReadonly(item.key)" class="readonly-help">
                                         {{ labels.readonlyCapability }}
@@ -95,7 +116,6 @@ import { MessagePlugin } from 'tdesign-vue-next';
 import { useAttributesStore } from '@/store/attribute';
 import { useConfigStore } from '@/store/rules';
 import { isReadOnlyDocumentAttributeName } from '@/models/settings';
-import type { DisplayRenderMethod } from '@/models/settings';
 import {
     applyDocumentFieldOverride,
     type DocumentFieldOverride,
@@ -140,10 +160,12 @@ const labels = {
     displayName: getI18nText('settings.displayName', '显示名'),
     order: getI18nText('settings.order', '排序值'),
     editable: getI18nText('settings.editable', '可编辑'),
-    renderMethod: getI18nText('settings.renderMethod', '渲染方式'),
-    renderMethodHelp: getI18nText(
-        'fieldSettings.renderMethodHelp',
-        '渲染方式来自全局「属性面板设置」规则，此处不可修改',
+    editMethod: getI18nText('fieldSettings.editMethod', '编辑方式'),
+    options: getI18nText('settings.options', '选项'),
+    optionsHint: getI18nText('settings.optionsHint', '仅单选/多选有效；回车添加选项'),
+    typeOverrideHelp: getI18nText(
+        'fieldSettings.typeOverrideHelp',
+        '编辑方式与选项仅作用于当前文档；恢复默认后回到全局规则',
     ),
     hidden: getI18nText('settings.hidden', '已隐藏'),
     readonlyCapability: getI18nText('settings.readOnlyCapability', '该字段由思源管理，值不可通过面板修改；显示名仅是插件内别名。'),
@@ -171,6 +193,8 @@ function baselineFor(key: string, fallbackDisplayAs: string, fallbackOrder: numb
             displayAs: matched.displayAs || fallbackDisplayAs,
             order: matched.order,
             editable: !isReadOnlyDocumentAttributeName(key) && matched.editable,
+            renderMethod: matched.renderMethod ?? 'input',
+            options: [...(matched.options ?? [])],
         };
     }
     return {
@@ -178,6 +202,8 @@ function baselineFor(key: string, fallbackDisplayAs: string, fallbackOrder: numb
         displayAs: fallbackDisplayAs,
         order: fallbackOrder,
         editable: !isReadOnlyDocumentAttributeName(key),
+        renderMethod: 'input',
+        options: [],
     };
 }
 
@@ -185,25 +211,11 @@ function isDocumentKeyReadonly(key: string): boolean {
     return isReadOnlyDocumentAttributeName(key);
 }
 
-function effectiveRenderMethod(key: string): DisplayRenderMethod {
-    const matched = settingsStore.matchDocumentRule(key);
-    return matched?.renderMethod ?? 'input';
-}
-
-function renderMethodLabel(key: string): string {
-    const method = effectiveRenderMethod(key);
-    const map: Record<DisplayRenderMethod, string> = {
-        input: labels.renderInput,
-        'tag-input': labels.renderTag,
-        datetime: labels.renderDatetime,
-        link: labels.renderLink,
-        select: labels.renderSelect,
-        'multi-select': labels.renderMultiSelect,
-        date: labels.renderDate,
-        checkbox: labels.renderCheckbox,
-        number: labels.renderNumber,
-    };
-    return map[method] ?? labels.renderInput;
+function sameOptions(left: string[] | undefined, right: string[] | undefined): boolean {
+    const a = left ?? [];
+    const b = right ?? [];
+    if (a.length !== b.length) return false;
+    return a.every((value, index) => value === b[index]);
 }
 
 function isSameAsBaseline(item: FieldDraft): boolean {
@@ -212,19 +224,33 @@ function isSameAsBaseline(item: FieldDraft): boolean {
         && item.draft.displayAs === item.baseline.displayAs
         && item.draft.order === item.baseline.order
         && item.draft.editable === item.baseline.editable
+        && (item.draft.renderMethod ?? 'input') === (item.baseline.renderMethod ?? 'input')
+        && sameOptions(item.draft.options, item.baseline.options)
     );
 }
 
 function restore(item: FieldDraft): void {
-    item.draft = { ...item.baseline };
+    item.draft = {
+        ...item.baseline,
+        options: [...(item.baseline.options ?? [])],
+    };
 }
 
 function loadDrafts(): void {
     const overrides = attributeStore.documentFieldOverrides.fields;
     documentDrafts.value = attributeStore.allDocumentAttributes.map((attribute) => {
-        const baseline = baselineFor(attribute.key, attribute.displayAs, attribute.order);
+        const baseline = baselineFor(
+            attribute.key,
+            attribute.key.replace(/^custom-/, ''),
+            1000,
+        );
         const existing = overrides[attribute.key];
-        const draft = applyDocumentFieldOverride(baseline, existing);
+        const merged = applyDocumentFieldOverride(baseline, existing);
+        const draft: DocumentFieldOverride = {
+            ...merged,
+            renderMethod: merged.renderMethod ?? 'input',
+            options: [...(merged.options ?? [])],
+        };
         return {
             key: attribute.key,
             attr: {
@@ -233,8 +259,11 @@ function loadDrafts(): void {
                 displayAs: attribute.displayAs,
                 editable: attribute.editable,
             },
-            baseline,
-            draft: { ...draft },
+            baseline: {
+                ...baseline,
+                options: [...(baseline.options ?? [])],
+            },
+            draft,
         };
     });
 }
@@ -257,6 +286,8 @@ async function save(): Promise<void> {
                 displayAs: item.draft.displayAs,
                 order: item.draft.order,
                 editable: isDocumentKeyReadonly(item.key) ? false : item.draft.editable,
+                renderMethod: item.draft.renderMethod ?? 'input',
+                options: [...(item.draft.options ?? [])],
             };
         }
         await attributeStore.saveDocumentFieldOverrides(fields);
@@ -433,19 +464,14 @@ onMounted(async () => {
     }
 }
 
-.render-method-readonly code {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: var(--td-radius-small);
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-primary);
-    font-size: 12px;
-}
-
 .render-method-help {
     margin: 8px 0 0;
     color: var(--td-text-color-secondary);
     font-size: 12px;
+}
+
+.options-field {
+    grid-column: 1 / -1;
 }
 
 .field-footer {

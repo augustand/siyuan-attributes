@@ -1,4 +1,10 @@
 /** Valid SiYuan custom attr: custom-[a-z][a-z0-9-]* (no underscores). */
+import {
+  normalizeRenderMethod,
+  normalizeRuleOptions,
+  type DisplayRenderMethod,
+} from "@/models/settings";
+
 export const DOCUMENT_FIELD_OVERRIDES_ATTR = "custom-mux-attrs-doc-fields";
 
 /** Legacy key with underscores — rejected by SiYuan setBlockAttrs; migrate away. */
@@ -9,6 +15,9 @@ export interface DocumentFieldOverride {
   displayAs: string;
   order: number;
   editable: boolean;
+  /** Absent on legacy payloads → do not override global/default type. */
+  renderMethod?: DisplayRenderMethod;
+  options?: string[];
 }
 
 export interface DocumentFieldOverrides {
@@ -35,12 +44,17 @@ function number(value: unknown, fallback: number): number {
 function normalizeOverride(input: unknown): DocumentFieldOverride | undefined {
   if (typeof input !== "object" || input === null) return undefined;
   const source = input as Record<string, unknown>;
-  return {
+  const renderMethod = normalizeRenderMethod(source.renderMethod);
+  const hasOptions = Object.prototype.hasOwnProperty.call(source, "options");
+  const result: DocumentFieldOverride = {
     display: bool(source.display, true),
     displayAs: string(source.displayAs, ""),
     order: number(source.order, 1000),
     editable: bool(source.editable, true),
   };
+  if (renderMethod !== undefined) result.renderMethod = renderMethod;
+  if (hasOptions) result.options = normalizeRuleOptions(source.options);
+  return result;
 }
 
 export function parseDocumentFieldOverrides(raw: unknown): DocumentFieldOverrides {
@@ -94,11 +108,18 @@ export function applyDocumentFieldOverride<T extends DocumentFieldOverride>(
   override: DocumentFieldOverride | undefined,
 ): T {
   if (!override) return base;
-  return {
+  const next: DocumentFieldOverride = {
     ...base,
     display: override.display,
     displayAs: override.displayAs,
     order: override.order,
     editable: override.editable,
   };
+  if (override.renderMethod !== undefined) next.renderMethod = override.renderMethod;
+  else if (base.renderMethod !== undefined) next.renderMethod = base.renderMethod;
+
+  if (override.options !== undefined) next.options = override.options;
+  else if (base.options !== undefined) next.options = base.options;
+
+  return next as T;
 }

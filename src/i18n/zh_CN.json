@@ -52,6 +52,8 @@
     "noDocumentFields": "暂无文档属性",
     "emptyHint": "当前文档还没有属性。请先在面板中「添加属性」。",
     "restoreDefault": "恢复默认",
+    "editMethod": "编辑方式",
+    "typeOverrideHelp": "编辑方式与选项仅作用于当前文档；恢复默认后回到全局规则",
     "renderMethodHelp": "渲染方式来自全局「属性面板设置」规则，此处不可修改",
     "saveSuccess": "字段设置已保存",
     "saveFailed": "保存字段设置失败"

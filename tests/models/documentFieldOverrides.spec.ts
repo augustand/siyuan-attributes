@@ -40,19 +40,55 @@ describe("documentFieldOverrides", () => {
 
   it("overlays override fields onto a base rule result", () => {
     const merged = applyDocumentFieldOverride(
-      { display: true, displayAs: "Base", order: 10, editable: true },
-      { display: false, displayAs: "Over", order: 20, editable: false },
+      { display: true, displayAs: "Base", order: 10, editable: true, renderMethod: "input", options: [] },
+      { display: false, displayAs: "Over", order: 20, editable: false, renderMethod: "tag-input", options: ["a"] },
     );
     expect(merged).toEqual({
       display: false,
       displayAs: "Over",
       order: 20,
       editable: false,
+      renderMethod: "tag-input",
+      options: ["a"],
     });
     expect(applyDocumentFieldOverride(
-      { display: true, displayAs: "Base", order: 10, editable: true },
+      { display: true, displayAs: "Base", order: 10, editable: true, renderMethod: "select", options: ["x"] },
       undefined,
-    )).toEqual({ display: true, displayAs: "Base", order: 10, editable: true });
+    )).toEqual({ display: true, displayAs: "Base", order: 10, editable: true, renderMethod: "select", options: ["x"] });
+  });
+
+  it("keeps global type when legacy override omits renderMethod", () => {
+    const merged = applyDocumentFieldOverride(
+      { display: true, displayAs: "Base", order: 10, editable: true, renderMethod: "multi-select", options: ["a", "b"] },
+      { display: false, displayAs: "Over", order: 20, editable: false },
+    );
+    expect(merged.renderMethod).toBe("multi-select");
+    expect(merged.options).toEqual(["a", "b"]);
+    expect(merged.display).toBe(false);
+  });
+
+  it("parses renderMethod and options on overrides", () => {
+    const parsed = parseDocumentFieldOverrides(JSON.stringify({
+      v: 1,
+      fields: {
+        "custom-tags": {
+          display: true,
+          displayAs: "tags",
+          order: 1,
+          editable: true,
+          renderMethod: "tag-input",
+          options: ["  a ", "", "a", "b"],
+        },
+      },
+    }));
+    expect(parsed.fields["custom-tags"]).toEqual({
+      display: true,
+      displayAs: "tags",
+      order: 1,
+      editable: true,
+      renderMethod: "tag-input",
+      options: ["a", "b"],
+    });
   });
 
   it("reads overrides from the valid key and falls back to legacy", () => {
