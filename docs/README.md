@@ -12,7 +12,7 @@ Feedback and suggestions welcome.
 ### Features
 
 1. Attribute panel under the document title for **document-level** custom attributes (add / edit / delete; `custom-` prefix is normalized on save)
-2. **Attribute Panel Settings** (plugin settings): global default rules (display name, visibility, editability, order, wildcards/regex)
+2. **Attribute Panel Settings** (plugin settings): global default rules (display name, visibility, editability, order, wildcards/regex, render methods: select / multi-select / date / checkbox / number; options for select and multi-select are configured only in global rules, not in field settings)
 3. **Field settings** (in-panel): overrides for **this document only**; other fields still follow global defaults
 4. Dark mode support
 5. Open a dialog from the block gutter menu (and content context menu) to edit that block's `custom-*` attributes; uses global rules; no per-block field overrides
