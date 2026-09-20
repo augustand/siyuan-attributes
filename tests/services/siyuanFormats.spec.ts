@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatSiYuanDateDisplay,
   formatSiYuanTimestampDisplay,
   parseAliasTags,
+  parseCheckboxValue,
+  parseNumberValue,
+  parseSiYuanDate,
   parseSiYuanTimestamp,
   serializeAliasTags,
+  serializeCheckboxValue,
+  toSiYuanDate,
   toSiYuanTimestamp,
 } from "@/services/siyuanFormats";
 import { normalizeRenderMethod } from "@/models/settings";
@@ -33,6 +39,41 @@ describe("siyuan timestamps", () => {
     expect(parseSiYuanTimestamp("nope")).toBeUndefined();
     expect(formatSiYuanTimestampDisplay("nope")).toBe("nope");
     expect(toSiYuanTimestamp(undefined)).toBe("");
+  });
+});
+
+describe("siyuan date (YYYYMMDD)", () => {
+  it("parses and formats date-only values", () => {
+    const d = parseSiYuanDate("20260919");
+    expect(d).toBeInstanceOf(Date);
+    expect(formatSiYuanDateDisplay("20260919")).toBe("2026-09-19");
+    expect(toSiYuanDate(d!)).toBe("20260919");
+  });
+
+  it("rejects datetime-length and invalid strings", () => {
+    expect(parseSiYuanDate("20260919153045")).toBeUndefined();
+    expect(parseSiYuanDate("nope")).toBeUndefined();
+    expect(formatSiYuanDateDisplay("nope")).toBe("nope");
+  });
+});
+
+describe("checkbox values", () => {
+  it("parses and serializes", () => {
+    expect(parseCheckboxValue("true")).toBe(true);
+    expect(parseCheckboxValue("TRUE")).toBe(true);
+    expect(parseCheckboxValue("false")).toBe(false);
+    expect(parseCheckboxValue("")).toBe(false);
+    expect(serializeCheckboxValue(true)).toBe("true");
+    expect(serializeCheckboxValue(false)).toBe("false");
+  });
+});
+
+describe("number values", () => {
+  it("accepts decimals and rejects junk", () => {
+    expect(parseNumberValue("12.5")).toBe("12.5");
+    expect(parseNumberValue(" 3 ")).toBe("3");
+    expect(parseNumberValue("")).toBe("");
+    expect(parseNumberValue("abc")).toBeUndefined();
   });
 });
 

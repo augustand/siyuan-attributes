@@ -1,5 +1,6 @@
 /** SiYuan stores document `updated`/`created` as compact local timestamps. */
 const COMPACT_TIMESTAMP = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/;
+const COMPACT_DATE = /^(\d{4})(\d{2})(\d{2})$/;
 
 export function parseAliasTags(raw: unknown): string[] {
   if (typeof raw !== "string" || !raw.trim()) return [];
@@ -63,4 +64,53 @@ export function toSiYuanTimestamp(date: Date | undefined | null): string {
     pad2(date.getMinutes()),
     pad2(date.getSeconds()),
   ].join("");
+}
+
+export function parseSiYuanDate(raw: unknown): Date | undefined {
+  if (typeof raw !== "string") return undefined;
+  const match = COMPACT_DATE.exec(raw.trim());
+  if (!match) return undefined;
+  const [, y, mo, d] = match;
+  const date = new Date(Number(y), Number(mo) - 1, Number(d));
+  if (Number.isNaN(date.getTime())) return undefined;
+  // reject overflow dates (e.g. 20260231)
+  if (
+    date.getFullYear() !== Number(y)
+    || date.getMonth() !== Number(mo) - 1
+    || date.getDate() !== Number(d)
+  ) {
+    return undefined;
+  }
+  return date;
+}
+
+export function formatSiYuanDateDisplay(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  const date = parseSiYuanDate(raw);
+  if (!date) return raw;
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+export function toSiYuanDate(date: Date | undefined | null): string {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}${pad2(date.getMonth() + 1)}${pad2(date.getDate())}`;
+}
+
+export function parseCheckboxValue(raw: unknown): boolean {
+  return typeof raw === "string" && raw.trim().toLowerCase() === "true";
+}
+
+export function serializeCheckboxValue(on: boolean): "true" | "false" {
+  return on ? "true" : "false";
+}
+
+export function parseNumberValue(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  if (trimmed === "") return "";
+  if (!/^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(trimmed)) return undefined;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n)) return undefined;
+  // Keep a stable string: prefer trimmed input if Number(trimmed) matches
+  return String(n);
 }
