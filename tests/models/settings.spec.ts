@@ -3,6 +3,7 @@ import {
   compareDisplayRules,
   DEFAULT_PANEL_SETTINGS,
   matchDisplayRule,
+  normalizeDisplayRule,
   normalizeLegacySettings,
   normalizePanelSettings,
 } from "@/models/settings";
@@ -129,6 +130,43 @@ describe("display matching", () => {
 
     const invalid = { ...base, rule: "[invalid", matchMethod: "regex" as const };
     expect(matchDisplayRule(invalid, "anything")).toBe(false);
+  });
+});
+
+describe("typed render methods and options", () => {
+  it("normalizes select options on a rule", () => {
+    const rule = normalizeDisplayRule({
+      name: "status",
+      rule: "custom-status",
+      matchMethod: "exact",
+      renderMethod: "select",
+      options: [" 待办 ", "", "进行中", "待办", "完成"],
+    });
+    expect(rule?.renderMethod).toBe("select");
+    expect(rule?.options).toEqual(["待办", "进行中", "完成"]);
+  });
+
+  it("defaults missing options to empty array for select-like methods", () => {
+    const rule = normalizeDisplayRule({
+      name: "tags",
+      rule: "custom-tags",
+      renderMethod: "multi-select",
+    });
+    expect(rule?.options).toEqual([]);
+  });
+
+  it("round-trips options through panel settings normalize", () => {
+    const settings = normalizePanelSettings({
+      version: 1,
+      showPanel: true,
+      rules: [{
+        name: "n",
+        rule: "custom-n",
+        renderMethod: "select",
+        options: ["a", "b"],
+      }],
+    });
+    expect(settings.rules[0].options).toEqual(["a", "b"]);
   });
 });
 

@@ -1,6 +1,15 @@
 export type DisplayRuleScope = "document";
 export type DisplayMatchMethod = "exact" | "wildcard" | "regex";
-export type DisplayRenderMethod = "input" | "tag-input" | "datetime" | "link";
+export type DisplayRenderMethod =
+    | "input"
+    | "tag-input"
+    | "datetime"
+    | "link"
+    | "select"
+    | "multi-select"
+    | "date"
+    | "checkbox"
+    | "number";
 
 export interface DisplayRule {
     id: string;
@@ -12,6 +21,7 @@ export interface DisplayRule {
     displayAs: string;
     editable: boolean;
     renderMethod?: DisplayRenderMethod;
+    options?: string[];
     order: number;
     icon?: string;
     system?: boolean;
@@ -71,11 +81,33 @@ function normalizeMatchMethod(value: unknown): DisplayMatchMethod {
 
 export function normalizeRenderMethod(value: unknown): DisplayRenderMethod | undefined {
     if (value === undefined || value === null || value === "") return undefined;
-    if (value === "tag-input") return "tag-input";
-    if (value === "datetime") return "datetime";
-    if (value === "link") return "link";
-    if (value === "input" || value === "checkbox") return "input";
+    if (
+        value === "input"
+        || value === "tag-input"
+        || value === "datetime"
+        || value === "link"
+        || value === "select"
+        || value === "multi-select"
+        || value === "date"
+        || value === "checkbox"
+        || value === "number"
+    ) {
+        return value;
+    }
     return "input";
+}
+
+export function normalizeRuleOptions(raw: unknown): string[] {
+    if (!Array.isArray(raw)) return [];
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const item of raw) {
+        const text = String(item ?? "").trim();
+        if (!text || seen.has(text)) continue;
+        seen.add(text);
+        out.push(text);
+    }
+    return out;
 }
 
 export const DEFAULT_PANEL_SETTINGS: PanelSettings = {
@@ -84,39 +116,39 @@ export const DEFAULT_PANEL_SETTINGS: PanelSettings = {
     rules: [
         {
             id: "system-id", name: "文档ID", rule: "id", matchMethod: "exact", scope: "document",
-            display: true, displayAs: "块 ID", editable: false, renderMethod: "link", order: 0, icon: "link", system: true,
+            display: true, displayAs: "块 ID", editable: false, renderMethod: "link", options: [], order: 0, icon: "link", system: true,
         },
         {
             id: "system-scroll", name: "阅读进度", rule: "scroll", matchMethod: "exact", scope: "document",
-            display: false, displayAs: "阅读进度", editable: false, renderMethod: "input", order: 1000, system: true,
+            display: false, displayAs: "阅读进度", editable: false, renderMethod: "input", options: [], order: 1000, system: true,
         },
         {
             id: "system-title", name: "标题", rule: "title", matchMethod: "exact", scope: "document",
-            display: false, displayAs: "标题", editable: false, renderMethod: "input", order: 1000, system: true,
+            display: false, displayAs: "标题", editable: false, renderMethod: "input", options: [], order: 1000, system: true,
         },
         {
             id: "system-name", name: "命名", rule: "name", matchMethod: "exact", scope: "document",
-            display: true, displayAs: "命名", editable: true, renderMethod: "input", order: 1000, system: true,
+            display: true, displayAs: "命名", editable: true, renderMethod: "input", options: [], order: 1000, system: true,
         },
         {
             id: "system-alias", name: "别名", rule: "alias", matchMethod: "exact", scope: "document",
-            display: true, displayAs: "别名", editable: true, renderMethod: "tag-input", order: 1000, system: true,
+            display: true, displayAs: "别名", editable: true, renderMethod: "tag-input", options: [], order: 1000, system: true,
         },
         {
             id: "system-type", name: "类型", rule: "type", matchMethod: "exact", scope: "document",
-            display: false, displayAs: "类型", editable: false, renderMethod: "input", order: 1000, system: true,
+            display: false, displayAs: "类型", editable: false, renderMethod: "input", options: [], order: 1000, system: true,
         },
         {
             id: "system-icon", name: "文档图标", rule: "icon", matchMethod: "exact", scope: "document",
-            display: false, displayAs: "文档图标", editable: false, renderMethod: "input", order: 1000, system: true,
+            display: false, displayAs: "文档图标", editable: false, renderMethod: "input", options: [], order: 1000, system: true,
         },
         {
             id: "system-updated", name: "更新日期", rule: "updated", matchMethod: "exact", scope: "document",
-            display: true, displayAs: "更新日期", editable: false, renderMethod: "datetime", order: 10, icon: "calendar-event", system: true,
+            display: true, displayAs: "更新日期", editable: false, renderMethod: "datetime", options: [], order: 10, icon: "calendar-event", system: true,
         },
         {
             id: "system-fold", name: "折叠状态", rule: "fold", matchMethod: "exact", scope: "document",
-            display: false, displayAs: "折叠状态", editable: false, renderMethod: "input", order: 1000, system: true,
+            display: false, displayAs: "折叠状态", editable: false, renderMethod: "input", options: [], order: 1000, system: true,
         },
     ],
 };
@@ -158,6 +190,8 @@ export function normalizeDisplayRule(input: unknown): DisplayRule | undefined {
 
     if (renderMethod === undefined) renderMethod = "input";
 
+    const options = normalizeRuleOptions(source.options);
+
     return {
         id,
         name,
@@ -168,6 +202,7 @@ export function normalizeDisplayRule(input: unknown): DisplayRule | undefined {
         displayAs: string(source.displayAs, name),
         editable,
         renderMethod,
+        options,
         order: number(source.order, 1000),
         system: isSystem,
         ...(typeof source.icon === "string" ? { icon: source.icon } : {}),

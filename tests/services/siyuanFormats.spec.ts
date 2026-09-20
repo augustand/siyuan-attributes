@@ -42,7 +42,11 @@ describe("normalizeRenderMethod", () => {
     expect(normalizeRenderMethod("datetime")).toBe("datetime");
     expect(normalizeRenderMethod("link")).toBe("link");
     expect(normalizeRenderMethod("input")).toBe("input");
-    expect(normalizeRenderMethod("checkbox")).toBe("input");
+    expect(normalizeRenderMethod("checkbox")).toBe("checkbox");
+    expect(normalizeRenderMethod("select")).toBe("select");
+    expect(normalizeRenderMethod("multi-select")).toBe("multi-select");
+    expect(normalizeRenderMethod("date")).toBe("date");
+    expect(normalizeRenderMethod("number")).toBe("number");
     expect(normalizeRenderMethod("weird")).toBe("input");
     expect(normalizeRenderMethod(undefined)).toBeUndefined();
   });
