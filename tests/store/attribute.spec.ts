@@ -17,24 +17,30 @@ vi.mock("@/services/blockAttrs", () => ({
 }));
 
 vi.mock("@/store/rules", () => ({
-  useConfigStore: () => ({
-    matchDocumentRule: (name: string) => name === "custom-x"
-      ? {
-          id: "test-x", name: "X", rule: name, matchMethod: "exact", scope: "document",
-          display: true, displayAs: "X", editable: true, renderMethod: "input", options: [], order: 1000,
-        }
-      : name === "custom-hidden"
-      ? {
-          id: "test-hidden", name: "Hidden", rule: name, matchMethod: "exact", scope: "document",
-          display: false, displayAs: "Hidden", editable: true, renderMethod: "input", options: [], order: 1000,
-        }
-      : name === "custom-tags"
-      ? {
-          id: "test-tags", name: "标签", rule: name, matchMethod: "exact", scope: "document",
-          display: true, displayAs: "标签", editable: true, renderMethod: "multi-select", options: [], order: 1000,
-        }
-      : undefined,
-  }),
+  useConfigStore: () => {
+    const rules = [
+      {
+        id: "test-x", name: "X", rule: "custom-x", matchMethod: "exact" as const, scope: "document" as const,
+        display: true, displayAs: "X", editable: true, renderMethod: "input" as const, options: [], order: 1000,
+      },
+      {
+        id: "test-hidden", name: "Hidden", rule: "custom-hidden", matchMethod: "exact" as const, scope: "document" as const,
+        display: false, displayAs: "Hidden", editable: true, renderMethod: "input" as const, options: [], order: 1000,
+      },
+      {
+        id: "test-tags", name: "标签", rule: "custom-tags", matchMethod: "exact" as const, scope: "document" as const,
+        display: true, displayAs: "标签", editable: true, renderMethod: "multi-select" as const, options: [], order: 1000,
+      },
+      {
+        id: "test-planned", name: "计划", rule: "custom-planned", matchMethod: "exact" as const, scope: "document" as const,
+        display: true, displayAs: "计划", editable: true, renderMethod: "input" as const, options: [], order: 50,
+      },
+    ];
+    return {
+      matchDocumentRule: (name: string) => rules.find((rule) => rule.rule === name),
+      documentRules: () => rules,
+    };
+  },
 }));
 
 describe("attributes store CRUD", () => {
@@ -102,6 +108,22 @@ describe("attributes store CRUD", () => {
     expect(row?.renderMethod).toBe("tag-input");
     expect(row?.displayAs).toBe("tags");
     expect(row?.order).toBe(5);
+  });
+
+  it("includes exact global rules that are not yet on the document", async () => {
+    fetchBlockAttrs.mockResolvedValue({ id: "doc" });
+    const store = initializeStore();
+    await store.loadDocumentAttributes();
+
+    const planned = store.allDocumentAttributes.find((item) => item.key === "custom-planned");
+    expect(planned).toBeTruthy();
+    expect(planned?.presentOnDocument).toBe(false);
+    expect(planned?.value).toBe("");
+    expect(store.builtInAttributes.some((item) => item.key === "custom-planned")).toBe(true);
+
+    const hidden = store.allDocumentAttributes.find((item) => item.key === "custom-hidden");
+    expect(hidden).toBeTruthy();
+    expect(store.builtInAttributes.some((item) => item.key === "custom-hidden")).toBe(false);
   });
 
   it("keeps hidden document attributes available to field settings", async () => {

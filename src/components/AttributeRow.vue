@@ -122,7 +122,10 @@
         </template>
 
         <template #actions>
-            <AttributeRowActions v-if="attributeKey.startsWith('custom-')" :attribute-key="attributeKey" />
+            <AttributeRowActions
+                v-if="attributeKey.startsWith('custom-') && attribute?.presentOnDocument !== false"
+                :attribute-key="attributeKey"
+            />
         </template>
     </BaseRow>
 </template>

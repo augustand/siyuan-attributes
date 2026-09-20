@@ -26,9 +26,76 @@ export interface innerAttribute {
     options?: string[];
     order: number;
     icon?: string;
+    /** False when the key comes from an exact global rule but is not yet stored on the block. */
+    presentOnDocument?: boolean;
 }
 
 type AttributeRow = innerAttribute & { show: boolean };
+
+function buildAttributeRow(
+    attributeName: string,
+    attributeValue: string,
+    matched: ReturnType<typeof matchRules>,
+    override: DocumentFieldOverride | undefined,
+    presentOnDocument: boolean,
+): AttributeRow | undefined {
+    if (matched) {
+        const effective = applyDocumentFieldOverride(
+            {
+                display: matched.display,
+                displayAs: matched.displayAs || attributeName,
+                order: matched.order,
+                editable: matched.editable,
+                renderMethod: matched.renderMethod ?? "input",
+                options: matched.options ?? [],
+            },
+            override,
+        );
+        const hidden = !effective.display;
+        return {
+            key: attributeName,
+            value: attributeValue,
+            name: matched.name,
+            displayAs: effective.displayAs,
+            editable: effective.editable && !hidden && !isReadOnlyDocumentAttributeName(attributeName),
+            renderMethod: effective.renderMethod ?? "input",
+            options: effective.options ?? [],
+            order: effective.order,
+            icon: matched.icon,
+            presentOnDocument,
+            show: effective.display,
+        };
+    }
+
+    if (!attributeName.startsWith("custom-") && !presentOnDocument) return undefined;
+
+    if (attributeName.startsWith("custom-") || presentOnDocument) {
+        const base = {
+            display: true,
+            displayAs: attributeName.replace(/^custom-/, ""),
+            order: 1000,
+            editable: true,
+            renderMethod: "input" as const,
+            options: [] as string[],
+        };
+        const effective = applyDocumentFieldOverride(base, override);
+        const hidden = !effective.display;
+        return {
+            key: attributeName,
+            value: attributeValue,
+            name: attributeName,
+            displayAs: effective.displayAs,
+            editable: effective.editable && !hidden && !isReadOnlyDocumentAttributeName(attributeName),
+            renderMethod: effective.renderMethod ?? "input",
+            options: effective.options ?? [],
+            order: effective.order,
+            presentOnDocument,
+            show: effective.display,
+        };
+    }
+
+    return undefined;
+}
 
 export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
     const documentId = ref(inject<string>("$docId", ""));
@@ -42,6 +109,7 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
         const overrides = readDocumentFieldOverridesFromAttrs(attrs);
         documentFieldOverrides.value = overrides;
         const next: Array<AttributeRow> = [];
+        const seen = new Set<string>();
 
         for (const [attributeName, attributeValue] of Object.entries(attrs)) {
             if (isReservedDocumentAttributeKey(attributeName)) continue;
@@ -49,55 +117,27 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
 
             const matched = matchRules(attributeName);
             const override = overrides.fields[attributeName];
+            const row = buildAttributeRow(attributeName, attributeValue, matched, override, true);
+            if (!row) continue;
+            next.push(row);
+            seen.add(attributeName);
+        }
 
-            if (matched) {
-                const effective = applyDocumentFieldOverride(
-                    {
-                        display: matched.display,
-                        displayAs: matched.displayAs || attributeName,
-                        order: matched.order,
-                        editable: matched.editable,
-                        renderMethod: matched.renderMethod ?? "input",
-                        options: matched.options ?? [],
-                    },
-                    override,
-                );
-                const hidden = !effective.display;
-                next.push({
-                    key: attributeName,
-                    value: attributeValue,
-                    name: matched.name,
-                    displayAs: effective.displayAs,
-                    editable: effective.editable && !hidden && !isReadOnlyDocumentAttributeName(attributeName),
-                    renderMethod: effective.renderMethod ?? "input",
-                    options: effective.options ?? [],
-                    order: effective.order,
-                    icon: matched.icon,
-                    show: effective.display,
-                });
-            } else if (attributeName.startsWith("custom-")) {
-                const base = {
-                    display: true,
-                    displayAs: attributeName.replace(/^custom-/, ""),
-                    order: 1000,
-                    editable: true,
-                    renderMethod: "input" as const,
-                    options: [] as string[],
-                };
-                const effective = applyDocumentFieldOverride(base, override);
-                const hidden = !effective.display;
-                next.push({
-                    key: attributeName,
-                    value: attributeValue,
-                    name: attributeName,
-                    displayAs: effective.displayAs,
-                    editable: effective.editable && !hidden,
-                    renderMethod: effective.renderMethod ?? "input",
-                    options: effective.options ?? [],
-                    order: effective.order,
-                    show: effective.display,
-                });
-            }
+        // Exact global rules appear even when the document has no value yet,
+        // so field settings can toggle visibility before the attr is created.
+        const configStore = useConfigStore();
+        for (const rule of configStore.documentRules()) {
+            if (rule.matchMethod !== "exact") continue;
+            const key = rule.rule;
+            if (!key || seen.has(key)) continue;
+            if (isReservedDocumentAttributeKey(key)) continue;
+            if (key === "custom-avs" || key.startsWith("custom-avs:")) continue;
+
+            const override = overrides.fields[key];
+            const row = buildAttributeRow(key, "", rule, override, false);
+            if (!row) continue;
+            next.push(row);
+            seen.add(key);
         }
 
         const sorted = next.sort((left, right) => left.order - right.order);

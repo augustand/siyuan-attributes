@@ -26,7 +26,7 @@
                                 <div class="field-identity">
                                     <div class="field-title">
                                         <span class="field-name">{{ item.draft.displayAs || item.key }}</span>
-                                        <span class="source-badge">文档</span>
+                                        <span class="source-badge">{{ item.presentOnDocument === false ? labels.fromRule : labels.onDocument }}</span>
                                         <span v-if="!item.draft.display" class="hidden-badge">{{ labels.hidden }}</span>
                                     </div>
                                     <code class="field-key">{{ item.key }}</code>
@@ -124,6 +124,7 @@ import { getI18nText } from '@/services/i18n';
 
 interface FieldDraft {
     key: string;
+    presentOnDocument: boolean;
     attr: {
         key: string;
         value: string;
@@ -154,7 +155,9 @@ const labels = {
     save: getI18nText('save', '保存'),
     cancel: getI18nText('cancel', '取消'),
     documentFields: getI18nText('fieldSettings.documentFields', '文档属性'),
-    emptyHint: getI18nText('fieldSettings.emptyHint', '当前文档还没有属性。请先在面板中「添加属性」。'),
+    emptyHint: getI18nText('fieldSettings.emptyHint', '暂无字段。请先在全局「属性面板设置」中添加精确匹配规则，或在面板中添加属性。'),
+    onDocument: getI18nText('fieldSettings.onDocument', '文档'),
+    fromRule: getI18nText('fieldSettings.fromRule', '全局规则'),
     restoreDefault: getI18nText('fieldSettings.restoreDefault', '恢复默认'),
     display: getI18nText('settings.display', '显示'),
     displayName: getI18nText('settings.displayName', '显示名'),
@@ -253,6 +256,7 @@ function loadDrafts(): void {
         };
         return {
             key: attribute.key,
+            presentOnDocument: attribute.presentOnDocument !== false,
             attr: {
                 key: attribute.key,
                 value: attribute.value,
