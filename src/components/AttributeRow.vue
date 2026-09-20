@@ -286,13 +286,18 @@ async function submitDate(value: string | Date): Promise<void> {
 
 async function submitDateOnly(value: string | Date): Promise<void> {
     let date: Date | undefined;
-    if (value instanceof Date) date = value;
-    else if (typeof value === 'string' && value.trim()) {
+    if (value instanceof Date) {
+        const serialized = toSiYuanDate(value);
+        date = serialized ? parseSiYuanDate(serialized) : undefined;
+    } else if (typeof value === 'string' && value.trim()) {
         const digits = value.replace(/\D/g, '');
-        date = parseSiYuanDate(digits.slice(0, 8)) ?? new Date(value);
-        if (Number.isNaN(date.getTime())) date = undefined;
+        date = parseSiYuanDate(digits.slice(0, 8));
     }
-    if (!date) return;
+    if (!date) {
+        const parsed = parseSiYuanDate(lastSaved.value);
+        datePickerValue.value = parsed ? formatDateForPicker(parsed) : '';
+        return;
+    }
     await persist(toSiYuanDate(date));
 }
 
