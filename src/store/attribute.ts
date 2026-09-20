@@ -23,6 +23,7 @@ export interface innerAttribute {
     displayAs: string;
     editable: boolean;
     renderMethod?: string;
+    options?: string[];
     order: number;
     icon?: string;
 }
@@ -67,6 +68,7 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
                     displayAs: effective.displayAs,
                     editable: effective.editable && !hidden && !isReadOnlyDocumentAttributeName(attributeName),
                     renderMethod: matched.renderMethod,
+                    options: matched.options ?? [],
                     order: effective.order,
                     icon: matched.icon,
                     show: effective.display,
@@ -87,6 +89,7 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
                     displayAs: effective.displayAs,
                     editable: effective.editable && !hidden,
                     renderMethod: "input",
+                    options: [],
                     order: effective.order,
                     show: effective.display,
                 });
