@@ -53,7 +53,12 @@
                                             :disabled="isDocumentKeyReadonly(item.key)"
                                         />
                                     </label>
+                                    <label class="render-method-readonly">
+                                        <span>{{ labels.renderMethod }}</span>
+                                        <code>{{ renderMethodLabel(item.key) }}</code>
+                                    </label>
                                 </div>
+                                <p class="render-method-help">{{ labels.renderMethodHelp }}</p>
                                 <div class="field-footer">
                                     <p v-if="isDocumentKeyReadonly(item.key)" class="readonly-help">
                                         {{ labels.readonlyCapability }}
@@ -90,6 +95,7 @@ import { MessagePlugin } from 'tdesign-vue-next';
 import { useAttributesStore } from '@/store/attribute';
 import { useConfigStore } from '@/store/rules';
 import { isReadOnlyDocumentAttributeName } from '@/models/settings';
+import type { DisplayRenderMethod } from '@/models/settings';
 import {
     applyDocumentFieldOverride,
     type DocumentFieldOverride,
@@ -134,10 +140,24 @@ const labels = {
     displayName: getI18nText('settings.displayName', '显示名'),
     order: getI18nText('settings.order', '排序值'),
     editable: getI18nText('settings.editable', '可编辑'),
+    renderMethod: getI18nText('settings.renderMethod', '渲染方式'),
+    renderMethodHelp: getI18nText(
+        'fieldSettings.renderMethodHelp',
+        '渲染方式来自全局「属性面板设置」规则，此处不可修改',
+    ),
     hidden: getI18nText('settings.hidden', '已隐藏'),
     readonlyCapability: getI18nText('settings.readOnlyCapability', '该字段由思源管理，值不可通过面板修改；显示名仅是插件内别名。'),
     saveSuccess: getI18nText('fieldSettings.saveSuccess', '字段设置已保存'),
     saveFailed: getI18nText('fieldSettings.saveFailed', '保存字段设置失败'),
+    renderInput: getI18nText('settings.renderInput', '文本'),
+    renderTag: getI18nText('settings.renderTag', '标签'),
+    renderDatetime: getI18nText('settings.renderDatetime', '日期时间'),
+    renderLink: getI18nText('settings.renderLink', '链接/ID'),
+    renderSelect: getI18nText('settings.renderSelect', '单选'),
+    renderMultiSelect: getI18nText('settings.renderMultiSelect', '多选'),
+    renderDate: getI18nText('settings.renderDate', '日期'),
+    renderCheckbox: getI18nText('settings.renderCheckbox', '开关'),
+    renderNumber: getI18nText('settings.renderNumber', '数字'),
 };
 
 const canSave = computed(() => !loading.value && !saving.value);
@@ -163,6 +183,27 @@ function baselineFor(key: string, fallbackDisplayAs: string, fallbackOrder: numb
 
 function isDocumentKeyReadonly(key: string): boolean {
     return isReadOnlyDocumentAttributeName(key);
+}
+
+function effectiveRenderMethod(key: string): DisplayRenderMethod {
+    const matched = settingsStore.matchDocumentRule(key);
+    return matched?.renderMethod ?? 'input';
+}
+
+function renderMethodLabel(key: string): string {
+    const method = effectiveRenderMethod(key);
+    const map: Record<DisplayRenderMethod, string> = {
+        input: labels.renderInput,
+        'tag-input': labels.renderTag,
+        datetime: labels.renderDatetime,
+        link: labels.renderLink,
+        select: labels.renderSelect,
+        'multi-select': labels.renderMultiSelect,
+        date: labels.renderDate,
+        checkbox: labels.renderCheckbox,
+        number: labels.renderNumber,
+    };
+    return map[method] ?? labels.renderInput;
 }
 
 function isSameAsBaseline(item: FieldDraft): boolean {
@@ -378,7 +419,7 @@ onMounted(async () => {
 
 .field-controls {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) 132px auto;
+    grid-template-columns: auto minmax(0, 1fr) 132px auto auto;
     align-items: end;
     gap: 12px;
 
@@ -390,6 +431,21 @@ onMounted(async () => {
         color: var(--td-text-color-secondary);
         font-size: 12px;
     }
+}
+
+.render-method-readonly code {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: var(--td-radius-small);
+    background: var(--td-bg-color-secondarycontainer);
+    color: var(--td-text-color-primary);
+    font-size: 12px;
+}
+
+.render-method-help {
+    margin: 8px 0 0;
+    color: var(--td-text-color-secondary);
+    font-size: 12px;
 }
 
 .field-footer {

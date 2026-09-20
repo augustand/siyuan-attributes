@@ -21,12 +21,17 @@ vi.mock("@/store/rules", () => ({
     matchDocumentRule: (name: string) => name === "custom-x"
       ? {
           id: "test-x", name: "X", rule: name, matchMethod: "exact", scope: "document",
-          display: true, displayAs: "X", editable: true, order: 1000,
+          display: true, displayAs: "X", editable: true, renderMethod: "input", options: [], order: 1000,
         }
       : name === "custom-hidden"
       ? {
           id: "test-hidden", name: "Hidden", rule: name, matchMethod: "exact", scope: "document",
-          display: false, displayAs: "Hidden", editable: true, order: 1000,
+          display: false, displayAs: "Hidden", editable: true, renderMethod: "input", options: [], order: 1000,
+        }
+      : name === "custom-tags"
+      ? {
+          id: "test-tags", name: "标签", rule: name, matchMethod: "exact", scope: "document",
+          display: true, displayAs: "标签", editable: true, renderMethod: "multi-select", options: [], order: 1000,
         }
       : undefined,
   }),
@@ -59,6 +64,17 @@ describe("attributes store CRUD", () => {
     await store.loadDocumentAttributes();
 
     expect(store.builtInAttributes.filter((item) => item.key === "custom-x")).toHaveLength(1);
+  });
+
+  it("applies matched rule renderMethod and options onto attribute rows", async () => {
+    fetchBlockAttrs.mockResolvedValue({ id: "doc", "custom-tags": "a,b" });
+    const store = initializeStore();
+    await store.loadDocumentAttributes();
+
+    const row = store.builtInAttributes.find((item) => item.key === "custom-tags");
+    expect(row?.renderMethod).toBe("multi-select");
+    expect(row?.options).toEqual([]);
+    expect(row?.displayAs).toBe("标签");
   });
 
   it("keeps hidden document attributes available to field settings", async () => {

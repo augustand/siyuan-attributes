@@ -67,7 +67,7 @@ export const useAttributesStore = defineStore(pluginKey + "attrs", () => {
                     name: matched.name,
                     displayAs: effective.displayAs,
                     editable: effective.editable && !hidden && !isReadOnlyDocumentAttributeName(attributeName),
-                    renderMethod: matched.renderMethod,
+                    renderMethod: matched.renderMethod ?? "input",
                     options: matched.options ?? [],
                     order: effective.order,
                     icon: matched.icon,

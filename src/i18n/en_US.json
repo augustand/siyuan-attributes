@@ -52,6 +52,7 @@
     "noDocumentFields": "No document attributes",
     "emptyHint": "This document has no attributes yet. Add one from the panel first.",
     "restoreDefault": "Restore default",
+    "renderMethodHelp": "Render method comes from global Attribute Panel Settings and cannot be changed here",
     "saveSuccess": "Field settings saved",
     "saveFailed": "Failed to save field settings"
   },

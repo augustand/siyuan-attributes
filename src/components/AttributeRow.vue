@@ -178,13 +178,15 @@ const attribute = computed(() => (
     builtInAttributes.value.find((item) => item.key === props.attributeKey)
 ));
 
+const ruleOptions = computed(() => attribute.value?.options ?? []);
+
 const method = computed<DisplayRenderMethod>(() => {
     const raw = attribute.value?.renderMethod;
-    if (raw && SELECT_METHODS.has(raw)) return raw as DisplayRenderMethod;
-    return 'input';
+    const resolved = raw && SELECT_METHODS.has(raw) ? raw as DisplayRenderMethod : 'input';
+    // Multi-select without configured options is unusable as a closed list — use free-form tags.
+    if (resolved === 'multi-select' && ruleOptions.value.length === 0) return 'tag-input';
+    return resolved;
 });
-
-const ruleOptions = computed(() => attribute.value?.options ?? []);
 
 const canEdit = computed(() => Boolean(attribute.value?.editable));
 const saving = computed(() => isSaving.value);
