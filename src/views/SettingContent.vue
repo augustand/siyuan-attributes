@@ -59,7 +59,20 @@
                                         <t-option value="tag-input" :label="labels.renderTag" />
                                         <t-option value="datetime" :label="labels.renderDatetime" />
                                         <t-option value="link" :label="labels.renderLink" />
+                                        <t-option value="select" :label="labels.renderSelect" />
+                                        <t-option value="multi-select" :label="labels.renderMultiSelect" />
+                                        <t-option value="date" :label="labels.renderDate" />
+                                        <t-option value="checkbox" :label="labels.renderCheckbox" />
+                                        <t-option value="number" :label="labels.renderNumber" />
                                     </t-select>
+                                </label>
+                                <label v-if="rule.renderMethod === 'select' || rule.renderMethod === 'multi-select'">
+                                    <span>{{ labels.options }}</span>
+                                    <t-tag-input
+                                        v-model="rule.options"
+                                        :placeholder="labels.optionsHint"
+                                        clearable
+                                    />
                                 </label>
                                 <label>
                                     <span>{{ labels.order }}</span>
@@ -134,6 +147,13 @@ const ruleCardRefs = ref<Array<HTMLElement>>([]);
     renderTag: getI18nText('settings.renderTag', '标签'),
     renderDatetime: getI18nText('settings.renderDatetime', '日期时间'),
     renderLink: getI18nText('settings.renderLink', '链接/ID'),
+    renderSelect: getI18nText('settings.renderSelect', '单选'),
+    renderMultiSelect: getI18nText('settings.renderMultiSelect', '多选'),
+    renderDate: getI18nText('settings.renderDate', '日期'),
+    renderCheckbox: getI18nText('settings.renderCheckbox', '开关'),
+    renderNumber: getI18nText('settings.renderNumber', '数字'),
+    options: getI18nText('settings.options', '选项'),
+    optionsHint: getI18nText('settings.optionsHint', '仅单选/多选有效；回车添加选项'),
     order: getI18nText('settings.order', '排序值'),
     display: getI18nText('settings.display', '显示'),
     editable: getI18nText('settings.editable', '可编辑'),
@@ -211,6 +231,7 @@ function addRule(): void {
         displayAs: '',
         editable: true,
         renderMethod: 'input',
+        options: [],
         order: maxOrder + 1,
     });
     void nextTick(() => {
