@@ -50,7 +50,7 @@
                 :borderless="true"
                 :disabled="!canEdit || saving"
                 clearable
-                @change="submitText"
+                @change="submitSelect"
             >
                 <t-option
                     v-for="opt in selectOptions"
@@ -104,7 +104,6 @@
         <template v-else-if="method === 'number'">
             <t-input
                 v-model="draft"
-                type="number"
                 :borderless="true"
                 :placeholder="labels.numberPlaceholder"
                 :disabled="!canEdit || saving"
@@ -257,6 +256,10 @@ async function persist(next: string): Promise<void> {
 
 async function submitText(): Promise<void> {
     await persist(draft.value);
+}
+
+async function submitSelect(): Promise<void> {
+    await persist(String(draft.value ?? ''));
 }
 
 async function submitTags(): Promise<void> {
