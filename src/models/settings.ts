@@ -27,10 +27,25 @@ export interface DisplayRule {
     system?: boolean;
 }
 
+export interface DatabaseDefaultsSettings {
+    hideEmpty: boolean;
+    hidePrimaryKey: boolean;
+}
+
+export interface DatabaseAvPrefsSettings {
+    hiddenKeyIDs: string[];
+    hideEmpty: boolean;
+    hidePrimaryKey: boolean;
+}
+
 export interface PanelSettings {
     version: 1;
     showPanel: boolean;
     rules: DisplayRule[];
+    /** Global defaults when an AV has no per-database prefs yet. */
+    databaseDefaults: DatabaseDefaultsSettings;
+    /** Per-avID column visibility prefs. */
+    databasePrefs: Record<string, DatabaseAvPrefsSettings>;
 }
 
 export const READ_ONLY_DOCUMENT_ATTRIBUTE_KEYS = new Set([
@@ -110,9 +125,16 @@ export function normalizeRuleOptions(raw: unknown): string[] {
     return out;
 }
 
+export const DEFAULT_DATABASE_DEFAULTS: DatabaseDefaultsSettings = {
+    hideEmpty: false,
+    hidePrimaryKey: true,
+};
+
 export const DEFAULT_PANEL_SETTINGS: PanelSettings = {
     version: 1,
     showPanel: true,
+    databaseDefaults: { ...DEFAULT_DATABASE_DEFAULTS },
+    databasePrefs: {},
     rules: [
         {
             id: "system-id", name: "文档ID", rule: "id", matchMethod: "exact", scope: "document",
@@ -219,15 +241,54 @@ export function findExactDisplayRule(
   ));
 }
 
+function normalizeDatabaseDefaults(input: unknown): DatabaseDefaultsSettings {
+    const source = typeof input === "object" && input !== null ? input as Record<string, unknown> : {};
+    return {
+        hideEmpty: bool(source.hideEmpty, DEFAULT_DATABASE_DEFAULTS.hideEmpty),
+        hidePrimaryKey: bool(source.hidePrimaryKey, DEFAULT_DATABASE_DEFAULTS.hidePrimaryKey),
+    };
+}
+
+function normalizeDatabaseAvPrefsSettings(
+    input: unknown,
+    defaults: DatabaseDefaultsSettings,
+): DatabaseAvPrefsSettings {
+    const source = typeof input === "object" && input !== null ? input as Record<string, unknown> : {};
+    const hiddenKeyIDs = Array.isArray(source.hiddenKeyIDs)
+        ? source.hiddenKeyIDs.filter((id): id is string => typeof id === "string" && id !== "")
+        : [];
+    return {
+        hiddenKeyIDs: [...new Set(hiddenKeyIDs)],
+        hideEmpty: bool(source.hideEmpty, defaults.hideEmpty),
+        hidePrimaryKey: bool(source.hidePrimaryKey, defaults.hidePrimaryKey),
+    };
+}
+
+function normalizeDatabasePrefsMap(
+    input: unknown,
+    defaults: DatabaseDefaultsSettings,
+): Record<string, DatabaseAvPrefsSettings> {
+    if (typeof input !== "object" || input === null || Array.isArray(input)) return {};
+    const out: Record<string, DatabaseAvPrefsSettings> = {};
+    for (const [avID, prefs] of Object.entries(input as Record<string, unknown>)) {
+        if (!avID) continue;
+        out[avID] = normalizeDatabaseAvPrefsSettings(prefs, defaults);
+    }
+    return out;
+}
+
 export function normalizePanelSettings(input: unknown): PanelSettings {
     const source = typeof input === "object" && input !== null ? input as Record<string, unknown> : {};
     const rules = Array.isArray(source.rules)
         ? source.rules.map(normalizeDisplayRule).filter((rule): rule is DisplayRule => Boolean(rule))
         : [...DEFAULT_PANEL_SETTINGS.rules];
+    const databaseDefaults = normalizeDatabaseDefaults(source.databaseDefaults);
 
     return {
         version: 1,
         showPanel: bool(source.showPanel, true),
+        databaseDefaults,
+        databasePrefs: normalizeDatabasePrefsMap(source.databasePrefs, databaseDefaults),
         rules,
     };
 }
