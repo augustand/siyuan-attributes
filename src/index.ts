@@ -8,12 +8,14 @@ import { createPinia } from "pinia";
 import App from "./App.vue";
 import "tdesign-vue-next/es/style/index.css";
 import SettingPage from "./views/SettingPage.vue";
+import DocDatabaseDock from "./views/DocDatabaseDock.vue";
 import { PanelRegistry } from "@/services/panelRegistry";
 
 export default class PluginSample extends Plugin {
   private readonly panelRegistry = new PanelRegistry();
   private settingApp?: VueApp<Element>;
   private settingPageDiv?: HTMLDivElement;
+  private dockApp?: VueApp<Element>;
 
   private initializeSettingDialog(): void {
     this.settingPageDiv = document.createElement("div");
@@ -31,7 +33,7 @@ export default class PluginSample extends Plugin {
       height: "60vh",
     });
     this.setting.addItem({
-      title: "数据库属性面板",
+      title: "文档数据库",
       createActionElement: () => this.settingPageDiv!,
     });
   }
@@ -63,9 +65,36 @@ export default class PluginSample extends Plugin {
 
     this.addTopBar({
       icon: "iconAttributePanelSettings",
-      title: "数据库属性面板",
+      title: "文档数据库",
       position: "right",
       callback: () => this.openSettingUI(),
+    });
+
+    this.addDock({
+      config: {
+        position: "RightTop",
+        size: { width: 320, height: 0 },
+        icon: "iconAttributePanelSettings",
+        title: "文档数据库",
+      },
+      data: { text: "DocDatabase" },
+      type: "mux-doc-database-dock",
+      init: (dock) => {
+        const host = document.createElement("div");
+        host.style.height = "100%";
+        host.style.overflow = "auto";
+        dock.element.append(host);
+        this.dockApp?.unmount();
+        this.dockApp = createApp(DocDatabaseDock);
+        this.dockApp.provide("$plugin", this);
+        this.dockApp.provide("$EventBus", this.eventBus);
+        this.dockApp.use(createPinia());
+        this.dockApp.mount(host);
+      },
+      destroy: () => {
+        this.dockApp?.unmount();
+        this.dockApp = undefined;
+      },
     });
   }
 
@@ -78,6 +107,8 @@ export default class PluginSample extends Plugin {
     this.eventBus.off("loaded-protyle-static", this.handleLoadedProtyle);
     this.eventBus.off("destroy-protyle", this.handleDestroyProtyle);
     this.panelRegistry.unmountAll();
+    this.dockApp?.unmount();
+    this.dockApp = undefined;
     this.settingApp?.unmount();
     this.settingApp = undefined;
     this.settingPageDiv?.remove();
@@ -85,6 +116,28 @@ export default class PluginSample extends Plugin {
   }
 
   private mountDatabasePanel(openedProtyle: IProtyle) {
+    // Under-title plugin editors are off by default (native AV UI owns field editing).
+    // Advanced opt-in is loaded asynchronously; skip mount until settings allow it.
+    void this.maybeMountUnderTitlePanel(openedProtyle);
+  }
+
+  private underTitleEnabled: boolean | null = null;
+
+  private async maybeMountUnderTitlePanel(openedProtyle: IProtyle) {
+    if (this.underTitleEnabled === null) {
+      try {
+        const raw = await this.loadData("settings-v1");
+        const show =
+          typeof raw === "object" &&
+          raw !== null &&
+          (raw as { showUnderTitlePanel?: unknown }).showUnderTitlePanel === true;
+        this.underTitleEnabled = show;
+      } catch {
+        this.underTitleEnabled = false;
+      }
+    }
+    if (!this.underTitleEnabled) return;
+
     const docId = openedProtyle.block.id;
 
     if (!docId || !docId.startsWith("2")) return;

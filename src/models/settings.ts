@@ -1,3 +1,6 @@
+import type { DocDatabaseRule } from "@/models/docDatabaseRules";
+import { normalizeDocDatabaseRules } from "@/models/docDatabaseRules";
+
 export type DisplayRuleScope = "document";
 export type DisplayMatchMethod = "exact" | "wildcard" | "regex";
 export type DisplayRenderMethod =
@@ -41,11 +44,15 @@ export interface DatabaseAvPrefsSettings {
 export interface PanelSettings {
     version: 1;
     showPanel: boolean;
-    rules: DisplayRule[];
+    /** When true, mount plugin field editors under the title (duplicates native). Default false. */
+    showUnderTitlePanel: boolean;
+    /** Notebook/path → default database binding rules. */
+    docDatabaseRules: DocDatabaseRule[];
     /** Global defaults when an AV has no per-database prefs yet. */
     databaseDefaults: DatabaseDefaultsSettings;
     /** Per-avID column visibility prefs. */
     databasePrefs: Record<string, DatabaseAvPrefsSettings>;
+    rules: DisplayRule[];
 }
 
 export const READ_ONLY_DOCUMENT_ATTRIBUTE_KEYS = new Set([
@@ -133,6 +140,8 @@ export const DEFAULT_DATABASE_DEFAULTS: DatabaseDefaultsSettings = {
 export const DEFAULT_PANEL_SETTINGS: PanelSettings = {
     version: 1,
     showPanel: true,
+    showUnderTitlePanel: false,
+    docDatabaseRules: [],
     databaseDefaults: { ...DEFAULT_DATABASE_DEFAULTS },
     databasePrefs: {},
     rules: [
@@ -287,6 +296,8 @@ export function normalizePanelSettings(input: unknown): PanelSettings {
     return {
         version: 1,
         showPanel: bool(source.showPanel, true),
+        showUnderTitlePanel: bool(source.showUnderTitlePanel, false),
+        docDatabaseRules: normalizeDocDatabaseRules(source.docDatabaseRules),
         databaseDefaults,
         databasePrefs: normalizeDatabasePrefsMap(source.databasePrefs, databaseDefaults),
         rules,
