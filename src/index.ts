@@ -3,78 +3,17 @@ import type { App as VueApp } from "vue";
 import type { IProtyle } from "siyuan";
 import "@/index.scss";
 
-// Vue
 import { createApp } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import "tdesign-vue-next/es/style/index.css";
 import SettingPage from "./views/SettingPage.vue";
-import BlockAttributeDialog from "./views/BlockAttributeDialog.vue";
 import { PanelRegistry } from "@/services/panelRegistry";
-import { BlockDialogHost } from "@/services/blockDialogHost";
-import {
-  resolveBlockIdFromBlockElements,
-  resolveBlockIdFromContentTarget,
-} from "@/services/blockMenu";
 
 export default class PluginSample extends Plugin {
   private readonly panelRegistry = new PanelRegistry();
-  private readonly blockDialogHost = new BlockDialogHost();
   private settingApp?: VueApp<Element>;
   private settingPageDiv?: HTMLDivElement;
-
-  private openBlockAttributeDialog(blockId: string): void {
-    const id = blockId.trim();
-    if (!id) return;
-
-    this.blockDialogHost.open((host) => {
-      const element = document.createElement("div");
-      host.append(element);
-      const app = createApp(BlockAttributeDialog);
-      const pinia = createPinia();
-      app.provide("$plugin", this);
-      app.provide("$EventBus", this.eventBus);
-      app.provide("$docId", id);
-      app.provide("$panelMode", "block");
-      app.provide("$closeBlockDialog", () => this.blockDialogHost.close());
-      app.use(pinia);
-      app.mount(element);
-      return { app, element };
-    });
-  }
-
-  private readonly handleClickBlockIcon = (event: {
-    detail: { menu: { addItem: (item: Record<string, unknown>) => void }; blockElements?: HTMLElement[] };
-  }) => {
-    const blockId = resolveBlockIdFromBlockElements(event.detail.blockElements ?? []);
-    if (!blockId) return;
-    const i18n = this.i18n as { blockDialog?: { menuLabel?: string } } | undefined;
-    event.detail.menu.addItem({
-      icon: "iconAttributePanelSettings",
-      label: i18n?.blockDialog?.menuLabel ?? "属性面板",
-      click: () => this.openBlockAttributeDialog(blockId),
-    });
-  };
-
-  private readonly handleOpenMenuContent = (event: {
-    detail: {
-      menu: { addItem: (item: Record<string, unknown>) => void };
-      element?: HTMLElement;
-      // some SiYuan builds pass the originating event
-      event?: Event;
-    };
-  }) => {
-    const fromEl = resolveBlockIdFromContentTarget(event.detail.element ?? null);
-    const fromEvent = resolveBlockIdFromContentTarget(event.detail.event?.target ?? null);
-    const blockId = fromEl ?? fromEvent;
-    if (!blockId) return;
-    const i18n = this.i18n as { blockDialog?: { menuLabel?: string } } | undefined;
-    event.detail.menu.addItem({
-      icon: "iconAttributePanelSettings",
-      label: i18n?.blockDialog?.menuLabel ?? "属性面板",
-      click: () => this.openBlockAttributeDialog(blockId),
-    });
-  };
 
   private initializeSettingDialog(): void {
     this.settingPageDiv = document.createElement("div");
@@ -88,11 +27,11 @@ export default class PluginSample extends Plugin {
     this.settingApp.mount(this.settingPageDiv);
 
     this.setting = new Setting({
-      width: "1080px",
-      height: "78vh",
+      width: "720px",
+      height: "60vh",
     });
     this.setting.addItem({
-      title: "属性面板设置",
+      title: "数据库属性面板",
       createActionElement: () => this.settingPageDiv!,
     });
   }
@@ -109,7 +48,7 @@ export default class PluginSample extends Plugin {
   }
 
   private readonly handleLoadedProtyle = (event: { detail: { protyle: IProtyle } }) => {
-    this.mountAttributePanel(event.detail.protyle);
+    this.mountDatabasePanel(event.detail.protyle);
   };
 
   private readonly handleDestroyProtyle = (event: { detail: { protyle: IProtyle } }) => {
@@ -124,7 +63,7 @@ export default class PluginSample extends Plugin {
 
     this.addTopBar({
       icon: "iconAttributePanelSettings",
-      title: "属性面板设置",
+      title: "数据库属性面板",
       position: "right",
       callback: () => this.openSettingUI(),
     });
@@ -133,16 +72,11 @@ export default class PluginSample extends Plugin {
   onLayoutReady() {
     this.eventBus.on("loaded-protyle-static", this.handleLoadedProtyle);
     this.eventBus.on("destroy-protyle", this.handleDestroyProtyle);
-    this.eventBus.on("click-blockicon", this.handleClickBlockIcon);
-    this.eventBus.on("open-menu-content", this.handleOpenMenuContent);
   }
 
   async onunload() {
     this.eventBus.off("loaded-protyle-static", this.handleLoadedProtyle);
     this.eventBus.off("destroy-protyle", this.handleDestroyProtyle);
-    this.eventBus.off("click-blockicon", this.handleClickBlockIcon);
-    this.eventBus.off("open-menu-content", this.handleOpenMenuContent);
-    this.blockDialogHost.close();
     this.panelRegistry.unmountAll();
     this.settingApp?.unmount();
     this.settingApp = undefined;
@@ -150,15 +84,14 @@ export default class PluginSample extends Plugin {
     this.settingPageDiv = undefined;
   }
 
-  private mountAttributePanel(openedProtyle: IProtyle) {
+  private mountDatabasePanel(openedProtyle: IProtyle) {
     const docId = openedProtyle.block.id;
 
-    // 本来想限制只有id开头为20才是完整id, 后来想了想还是为能够活到2100的人提供支持吧嘿嘿
     if (!docId || !docId.startsWith("2")) return;
     if (this.panelRegistry.isConnected(docId)) return;
 
     const parentNode = document.querySelector(
-      `div[data-node-id="${docId}"].protyle-title`
+      `div[data-node-id="${docId}"].protyle-title`,
     );
     if (!parentNode) {
       console.log("Parent node not found");
@@ -172,7 +105,7 @@ export default class PluginSample extends Plugin {
     }
 
     const newDiv = document.createElement("div");
-    newDiv.className = "mux-attribute-panel";
+    newDiv.className = "mux-database-panel";
     targetNode.after(newDiv);
 
     const app = createApp(App);
