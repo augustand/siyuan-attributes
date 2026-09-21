@@ -1,11 +1,14 @@
 {
   "settings": {
-    "title": "属性面板设置",
+    "title": "数据库属性面板",
     "documentRules": "文档属性规则",
     "general": "通用",
-    "showPanel": "显示属性面板",
+    "showPanel": "显示面板",
+    "hidePrimaryKey": "默认隐藏主键",
+    "hideEmpty": "默认隐藏空字段",
+    "coexist": "若同时安装了其他数据库属性面板插件，标题下可能出现两个面板。",
     "addRule": "添加规则",
-    "help": "按属性名匹配文档属性，可控制显示名、显示状态、可编辑性和排序。此处为全局默认；单篇文档特例请在属性面板的「字段设置」中配置。",
+    "help": "在文档标题下显示并编辑该文档绑定的数据库字段。文档 custom 属性编辑已暂停。",
     "noRules": "暂无规则",
     "moveUp": "上移",
     "moveDown": "下移",
@@ -41,6 +44,17 @@
     "saveFailed": "保存设置失败",
     "resetSuccess": "已恢复默认设置",
     "resetFailed": "恢复默认设置失败"
+  },
+  "databasePanel": {
+    "loading": "加载中…",
+    "empty": "将此文档加入数据库后即可在此编辑字段",
+    "hideEmpty": "隐藏空字段",
+    "columns": "列设置",
+    "showPrimary": "显示主键",
+    "noVisible": "当前没有可显示的字段",
+    "placeholderSelect": "请选择",
+    "placeholderInput": "请输入",
+    "unsupported": "暂不支持在面板中编辑"
   },
   "loading": "加载中...",
   "fieldSettings": {

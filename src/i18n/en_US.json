@@ -1,11 +1,14 @@
 {
   "settings": {
-    "title": "Attribute Panel Settings",
+    "title": "Database properties panel",
     "documentRules": "Document attribute rules",
     "general": "General",
-    "showPanel": "Show attribute panel",
+    "showPanel": "Show panel",
+    "hidePrimaryKey": "Hide primary key by default",
+    "hideEmpty": "Hide empty fields by default",
+    "coexist": "If another database properties panel plugin is installed, two panels may appear under the title.",
     "addRule": "Add rule",
-    "help": "Document rules match attribute names and control display name, visibility, editability, and order. These are global defaults; per-document exceptions live in the panel Field settings dialog.",
+    "help": "Show and edit Attribute View fields for the current document under the title. Custom document attribute editing is paused.",
     "noRules": "No rules",
     "moveUp": "Move up",
     "moveDown": "Move down",
@@ -41,6 +44,17 @@
     "saveFailed": "Failed to save settings",
     "resetSuccess": "Defaults restored",
     "resetFailed": "Failed to restore defaults"
+  },
+  "databasePanel": {
+    "loading": "Loading…",
+    "empty": "Add this document to a database to edit fields here",
+    "hideEmpty": "Hide empty fields",
+    "columns": "Columns",
+    "showPrimary": "Show primary key",
+    "noVisible": "No visible fields",
+    "placeholderSelect": "Select",
+    "placeholderInput": "Enter value",
+    "unsupported": "Editing this type is not supported in the panel yet"
   },
   "loading": "Loading...",
   "fieldSettings": {

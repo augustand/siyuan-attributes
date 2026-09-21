@@ -318,11 +318,11 @@ export function normalizeLegacySettings(input: {
         if (!migratedRules.has(defaultRule.rule)) migrated.push({ ...defaultRule });
     }
 
-    return {
+    return normalizePanelSettings({
         version: 1,
         showPanel: bool(legacyConfigurations.show, true),
         rules: migrated,
-    };
+    });
 }
 
 export function matchDisplayRule(rule: DisplayRule, name: string): boolean {
