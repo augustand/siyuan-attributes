@@ -4,18 +4,6 @@
     <p class="help">{{ labels.help }}</p>
     <p class="help muted">{{ labels.nativeNote }}</p>
 
-    <t-form label-align="top">
-      <t-form-item :label="labels.showUnderTitle">
-        <t-switch v-model="draft.showUnderTitlePanel" />
-      </t-form-item>
-      <t-form-item :label="labels.hidePrimaryKey">
-        <t-switch v-model="draft.databaseDefaults.hidePrimaryKey" />
-      </t-form-item>
-      <t-form-item :label="labels.hideEmpty">
-        <t-switch v-model="draft.databaseDefaults.hideEmpty" />
-      </t-form-item>
-    </t-form>
-
     <h3>{{ labels.rulesTitle }}</h3>
     <p class="help">{{ labels.rulesHelp }}</p>
     <div v-for="(rule, index) in draft.docDatabaseRules" :key="rule.id" class="rule-card">
@@ -58,18 +46,12 @@ const labels = computed(() => ({
   title: getI18nText("settings.title", "文档数据库"),
   help: getI18nText(
     "settings.help",
-    "管理文档与数据库的绑定规则与查询。字段编辑请使用思源原生「数据库」区域。",
+    "管理文档与数据库的绑定规则。字段编辑请使用思源原生「数据库」区域。",
   ),
   nativeNote: getI18nText(
     "settings.nativeNote",
-    "默认不在标题下重复挂插件字段面板，避免与系统面板重叠。",
+    "本插件不再在标题下展示属性面板，避免与系统重复。",
   ),
-  showUnderTitle: getI18nText(
-    "settings.showUnderTitlePanel",
-    "高级：标题下显示插件字段面板（会与原生重复）",
-  ),
-  hidePrimaryKey: getI18nText("settings.hidePrimaryKey", "默认隐藏主键（仅高级面板）"),
-  hideEmpty: getI18nText("settings.hideEmpty", "默认隐藏空字段（仅高级面板）"),
   rulesTitle: getI18nText("settings.rulesTitle", "绑定规则"),
   rulesHelp: getI18nText(
     "settings.rulesHelp",
@@ -89,12 +71,8 @@ const labels = computed(() => ({
 
 function syncDraftFromStore(): void {
   const next = normalizePanelSettings(settingsStore.settings);
-  draft.showPanel = next.showPanel;
-  draft.showUnderTitlePanel = next.showUnderTitlePanel;
   draft.docDatabaseRules = next.docDatabaseRules.map((r) => ({ ...r }));
-  draft.databaseDefaults = { ...next.databaseDefaults };
-  draft.databasePrefs = { ...next.databasePrefs };
-  draft.rules = next.rules;
+  draft.showUnderTitlePanel = false;
   draft.version = 1;
 }
 
@@ -137,9 +115,8 @@ async function save(): Promise<void> {
     await settingsStore.updateSettings(
       normalizePanelSettings({
         ...settingsStore.settings,
-        showUnderTitlePanel: draft.showUnderTitlePanel,
+        showUnderTitlePanel: false,
         docDatabaseRules: rules,
-        databaseDefaults: { ...draft.databaseDefaults },
       }),
     );
     syncDraftFromStore();

@@ -7,12 +7,12 @@
   "backends": ["windows", "linux", "darwin", "android", "docker", "ios"],
   "frontends": ["desktop", "desktop-window", "browser-desktop"],
   "displayName": {
-    "default": "SiYuan Database Properties Panel",
-    "zh_CN": "数据库属性面板"
+    "default": "Document Database Manager",
+    "zh_CN": "文档数据库"
   },
   "description": {
-    "default": "Edit Attribute View fields for the current document under the title",
-    "zh_CN": "在文档标题下查看并编辑绑定的数据库字段"
+    "default": "Manage document↔database binding rules and queries; field editing uses native SiYuan UI",
+    "zh_CN": "管理文档与数据库的绑定、规则与查询；字段编辑使用思源原生数据库面板"
   },
   "readme": {
     "default": "docs/README.md",
@@ -24,8 +24,9 @@
     "github": ""
   },
   "keywords": [
-    "attributes",
+    "database",
+    "attribute-view",
     "document",
-    "panel"
+    "manager"
   ]
 }
