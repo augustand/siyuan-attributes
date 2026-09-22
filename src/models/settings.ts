@@ -1,5 +1,7 @@
 import type { DocDatabaseRule } from "@/models/docDatabaseRules";
 import { normalizeDocDatabaseRules } from "@/models/docDatabaseRules";
+import type { OwnedDatabase } from "@/models/ownedDatabase";
+import { normalizeOwnedDatabases } from "@/models/ownedDatabase";
 
 export type DisplayRuleScope = "document";
 export type DisplayMatchMethod = "exact" | "wildcard" | "regex";
@@ -48,6 +50,8 @@ export interface PanelSettings {
     showUnderTitlePanel: boolean;
     /** Notebook/path → default database binding rules. */
     docDatabaseRules: DocDatabaseRule[];
+    /** Plugin-managed database catalog (friendly names). */
+    ownedDatabases: OwnedDatabase[];
     /** Global defaults when an AV has no per-database prefs yet. */
     databaseDefaults: DatabaseDefaultsSettings;
     /** Per-avID column visibility prefs. */
@@ -142,6 +146,7 @@ export const DEFAULT_PANEL_SETTINGS: PanelSettings = {
     showPanel: true,
     showUnderTitlePanel: false,
     docDatabaseRules: [],
+    ownedDatabases: [],
     databaseDefaults: { ...DEFAULT_DATABASE_DEFAULTS },
     databasePrefs: {},
     rules: [
@@ -298,6 +303,7 @@ export function normalizePanelSettings(input: unknown): PanelSettings {
         showPanel: bool(source.showPanel, true),
         showUnderTitlePanel: bool(source.showUnderTitlePanel, false),
         docDatabaseRules: normalizeDocDatabaseRules(source.docDatabaseRules),
+        ownedDatabases: normalizeOwnedDatabases(source.ownedDatabases),
         databaseDefaults,
         databasePrefs: normalizeDatabasePrefsMap(source.databasePrefs, databaseDefaults),
         rules,
