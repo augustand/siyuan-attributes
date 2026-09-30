@@ -1,4 +1,4 @@
-import { Plugin, Setting } from "siyuan";
+import { Plugin, Setting, showMessage } from "siyuan";
 import type { App as VueApp } from "vue";
 import "@/index.scss";
 
@@ -7,15 +7,27 @@ import { createPinia } from "pinia";
 import "tdesign-vue-next/es/style/index.css";
 import SettingPage from "./views/SettingPage.vue";
 import DocDatabaseDock from "./views/DocDatabaseDock.vue";
+import DoctreeClassifyHost from "./views/DoctreeClassifyHost.vue";
+import {
+  DEFAULT_TABLE_TEMPLATES,
+  type TableTemplate,
+} from "./models/databaseTypes";
+import { displayOwnedDatabaseName } from "./models/ownedDatabaseHang";
+import { joinTableByKey } from "./services/doctreeClassify";
+import { getI18nText, setI18n } from "./services/i18n";
+import { CLASSIFY_PICK_TABLE_EVENT } from "./services/doctreeClassifyEvents";
 
 /**
  * Document × database manager.
  * Field editing under the title is left to SiYuan's native AV UI.
+ * Doctree classify registers on plugin.eventBus (not Dock / Vue inject).
  */
 export default class PluginSample extends Plugin {
   private settingApp?: VueApp<Element>;
   private settingPageDiv?: HTMLDivElement;
   private dockApp?: VueApp<Element>;
+  private classifyApp?: VueApp<Element>;
+  private classifyHost?: HTMLDivElement;
 
   private initializeSettingDialog(): void {
     this.settingPageDiv = document.createElement("div");
@@ -25,6 +37,7 @@ export default class PluginSample extends Plugin {
     this.settingApp = createApp(SettingPage);
     this.settingApp.provide("$plugin", this);
     this.settingApp.use(createPinia());
+    setI18n(this.i18n as Record<string, unknown> | undefined);
     this.settingApp.mount(this.settingPageDiv);
 
     this.setting = new Setting({
@@ -32,7 +45,7 @@ export default class PluginSample extends Plugin {
       height: "70vh",
     });
     this.setting.addItem({
-      title: "文档数据库",
+      title: getI18nText("settings.title", "文档数据库"),
       createActionElement: () => this.settingPageDiv!,
     });
   }
@@ -48,24 +61,136 @@ export default class PluginSample extends Plugin {
     this.openSetting();
   }
 
+  private mountClassifyHost(): void {
+    if (this.classifyApp) return;
+    const parent = document.body ?? document.documentElement;
+    this.classifyHost = document.createElement("div");
+    this.classifyHost.className = "mux-doctree-classify-host";
+    parent.appendChild(this.classifyHost);
+    this.classifyApp = createApp(DoctreeClassifyHost);
+    this.classifyApp.provide("$plugin", this);
+    this.classifyApp.use(createPinia());
+    setI18n(this.i18n as Record<string, unknown> | undefined);
+    this.classifyApp.mount(this.classifyHost);
+  }
+
+  private onDoctreeMenu = (event: CustomEvent): void => {
+    const detail = event.detail as {
+      menu?: { addItem: (item: Record<string, unknown>) => void };
+      type?: string;
+      items?: Array<{ id: string }>;
+      elements?: NodeListOf<HTMLElement>;
+    };
+    // SiYuan uses doc / docs / items for document nodes
+    if (
+      detail.type !== "doc"
+      && detail.type !== "docs"
+      && detail.type !== "items"
+    ) {
+      return;
+    }
+    if (!detail.menu?.addItem) return;
+
+    const ids =
+      detail.items?.map((i) => i.id).filter(Boolean)
+      ?? Array.from(detail.elements ?? [])
+        .map((el) => el.getAttribute("data-node-id") || el.dataset.nodeId || "")
+        .filter(Boolean);
+    if (!ids.length) return;
+
+    const targetId = ids[0]!;
+
+    for (const template of DEFAULT_TABLE_TEMPLATES) {
+      detail.menu.addItem({
+        icon: "iconDocDatabase",
+        label: getI18nText(template.nameKey, template.nameFallback),
+        click: () => {
+          void this.joinTableFromMenu(targetId, template);
+        },
+      });
+    }
+    detail.menu.addItem({
+      icon: "iconDocDatabase",
+      label: getI18nText("ownedDb.menuJoinMore", "更多表格…"),
+      click: () => {
+        window.dispatchEvent(
+          new CustomEvent(CLASSIFY_PICK_TABLE_EVENT, {
+            detail: { docId: targetId },
+          }),
+        );
+      },
+    });
+  };
+
+  private async joinTableFromMenu(
+    docId: string,
+    template: TableTemplate,
+  ): Promise<void> {
+    try {
+      const result = await joinTableByKey({
+        plugin: this,
+        docId,
+        templateKey: template.key,
+        nameOf: (tpl) => getI18nText(tpl.nameKey, tpl.nameFallback),
+      });
+      if (result.addedColumns.length) {
+        showMessage(
+          getI18nText("ownedDb.columnsAdded", "已补齐字段：{cols}").replace(
+            "{cols}",
+            result.addedColumns.join("、"),
+          ),
+          3000,
+          "info",
+        );
+      }
+      if (result.kind === "already") {
+        showMessage(
+          getI18nText("ownedDb.alreadyBound", "文档已在该库中"),
+          2000,
+          "info",
+        );
+        return;
+      }
+      const label = getI18nText(template.nameKey, template.nameFallback);
+      const name = displayOwnedDatabaseName(result.db.name, label);
+      showMessage(
+        getI18nText(
+          result.kind === "created" ? "ownedDb.createdJoin" : "ownedDb.joinOk",
+          result.kind === "created"
+            ? `已生成并加入「${name}」`
+            : `已加入「${name}」`,
+        ).replace("{name}", name),
+        3000,
+        "info",
+      );
+    } catch (e) {
+      showMessage(e instanceof Error ? e.message : String(e), 5000, "error");
+    }
+  }
+
   async onload() {
+    setI18n(this.i18n as Record<string, unknown> | undefined);
+
     this.addIcons(`<symbol id="iconDocDatabase" viewBox="0 0 24 24">
       <path fill="currentColor" d="M4 4h16v4H4V4Zm0 6h16v10H4V10Zm2 2v6h12v-6H6Z"/>
     </symbol>`);
 
     this.addTopBar({
       icon: "iconDocDatabase",
-      title: "文档数据库",
+      title: getI18nText("settings.title", "文档数据库"),
       position: "right",
       callback: () => this.openSettingUI(),
     });
+
+    // Register on plugin bus directly — do not depend on Vue inject / Dock mount.
+    this.eventBus.on("open-menu-doctree", this.onDoctreeMenu);
 
     this.addDock({
       config: {
         position: "RightTop",
         size: { width: 320, height: 0 },
         icon: "iconDocDatabase",
-        title: "文档数据库",
+        title: getI18nText("settings.title", "文档数据库"),
       },
       data: { text: "DocDatabase" },
       type: "mux-doc-database-dock",
@@ -79,6 +204,7 @@ export default class PluginSample extends Plugin {
         this.dockApp.provide("$plugin", this);
         this.dockApp.provide("$EventBus", this.eventBus);
         this.dockApp.use(createPinia());
+        setI18n(this.i18n as Record<string, unknown> | undefined);
         this.dockApp.mount(host);
       },
       destroy: () => {
@@ -88,9 +214,19 @@ export default class PluginSample extends Plugin {
     });
   }
 
+  async onLayoutReady() {
+    // Create dialog host after layout exists (body ready).
+    this.mountClassifyHost();
+  }
+
   async onunload() {
+    this.eventBus.off("open-menu-doctree", this.onDoctreeMenu);
     this.dockApp?.unmount();
     this.dockApp = undefined;
+    this.classifyApp?.unmount();
+    this.classifyApp = undefined;
+    this.classifyHost?.remove();
+    this.classifyHost = undefined;
     this.settingApp?.unmount();
     this.settingApp = undefined;
     this.settingPageDiv?.remove();
