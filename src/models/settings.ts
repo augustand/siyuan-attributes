@@ -52,6 +52,14 @@ export interface PanelSettings {
     docDatabaseRules: DocDatabaseRule[];
     /** Plugin-managed database catalog (friendly names). */
     ownedDatabases: OwnedDatabase[];
+    /** Last notebook used when creating an owned database. */
+    ownedDbNotebookId: string;
+    /** Last owned database avID successfully bound from Dock / menu. */
+    ownedDbLastAvID: string;
+    /** Last database type used when creating an owned database. */
+    ownedDbLastTypeId: string;
+    /** Per-type primary owned database avID (task/project/product/generic). */
+    ownedDbPrimaryByType: Record<string, string>;
     /** Global defaults when an AV has no per-database prefs yet. */
     databaseDefaults: DatabaseDefaultsSettings;
     /** Per-avID column visibility prefs. */
@@ -147,6 +155,10 @@ export const DEFAULT_PANEL_SETTINGS: PanelSettings = {
     showUnderTitlePanel: false,
     docDatabaseRules: [],
     ownedDatabases: [],
+    ownedDbNotebookId: "",
+    ownedDbLastAvID: "",
+    ownedDbLastTypeId: "",
+    ownedDbPrimaryByType: {},
     databaseDefaults: { ...DEFAULT_DATABASE_DEFAULTS },
     databasePrefs: {},
     rules: [
@@ -291,6 +303,24 @@ function normalizeDatabasePrefsMap(
     return out;
 }
 
+function normalizeOwnedDbPrimaryByType(input: unknown): Record<string, string> {
+    if (typeof input !== "object" || input === null || Array.isArray(input)) return {};
+    const out: Record<string, string> = {};
+    for (const [typeId, avID] of Object.entries(input as Record<string, unknown>)) {
+        if (
+            (typeId === "task"
+              || typeId === "project"
+              || typeId === "product"
+              || typeId === "generic")
+            && typeof avID === "string"
+            && avID.trim()
+        ) {
+            out[typeId] = avID.trim();
+        }
+    }
+    return out;
+}
+
 export function normalizePanelSettings(input: unknown): PanelSettings {
     const source = typeof input === "object" && input !== null ? input as Record<string, unknown> : {};
     const rules = Array.isArray(source.rules)
@@ -304,6 +334,10 @@ export function normalizePanelSettings(input: unknown): PanelSettings {
         showUnderTitlePanel: bool(source.showUnderTitlePanel, false),
         docDatabaseRules: normalizeDocDatabaseRules(source.docDatabaseRules),
         ownedDatabases: normalizeOwnedDatabases(source.ownedDatabases),
+        ownedDbNotebookId: string(source.ownedDbNotebookId, ""),
+        ownedDbLastAvID: string(source.ownedDbLastAvID, ""),
+        ownedDbLastTypeId: string(source.ownedDbLastTypeId, ""),
+        ownedDbPrimaryByType: normalizeOwnedDbPrimaryByType(source.ownedDbPrimaryByType),
         databaseDefaults,
         databasePrefs: normalizeDatabasePrefsMap(source.databasePrefs, databaseDefaults),
         rules,

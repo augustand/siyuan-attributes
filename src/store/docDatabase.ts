@@ -11,6 +11,7 @@ import {
   unbindDocumentFromDatabase,
   type DatabaseBoundDoc,
 } from "@/services/attributeView";
+import { openDocument } from "@/services/ownedDatabase";
 import { useConfigStore } from "@/store/rules";
 
 export const useDocDatabaseStore = defineStore("mux-doc-database-manager", () => {
@@ -96,17 +97,11 @@ export const useDocDatabaseStore = defineStore("mux-doc-database-manager", () =>
   }
 
   async function openDoc(id: string): Promise<void> {
-    // Prefer plugin open API when available
-    const anyPlugin = plugin as Plugin & {
-      openTab?: (options: Record<string, unknown>) => void;
-    };
-    if (typeof anyPlugin?.openTab === "function") {
-      anyPlugin.openTab({
-        doc: { id },
-      });
-      return;
+    try {
+      await openDocument(id, plugin);
+    } catch (e) {
+      console.warn("openDoc failed", e);
     }
-    await fetchSyncPostSafe("/api/filetree/openDoc", { id });
   }
 
   return {
@@ -129,8 +124,3 @@ export const useDocDatabaseStore = defineStore("mux-doc-database-manager", () =>
     openDoc,
   };
 });
-
-async function fetchSyncPostSafe(url: string, data: unknown): Promise<void> {
-  const { fetchSyncPost } = await import("siyuan");
-  await fetchSyncPost(url, data);
-}

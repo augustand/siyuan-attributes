@@ -1,3 +1,8 @@
+import type { DatabaseTypeId } from "@/models/databaseTypes";
+import { normalizeDatabaseTypeId } from "@/models/databaseTypes";
+
+export type OwnedDatabaseSource = "managed" | "collected";
+
 export interface OwnedDatabase {
   id: string;
   /** Display name shown in “添加到数据库” */
@@ -7,6 +12,12 @@ export interface OwnedDatabase {
   viewID?: string;
   /** Optional home doc that hosts the database block */
   homeDocId?: string;
+  /** managed = created by this plugin; collected = imported from workspace */
+  source?: OwnedDatabaseSource;
+  /** Business type template used at create time */
+  typeId?: DatabaseTypeId;
+  /** Default table template key (tasks/projects/inbox) for template-created tables */
+  templateKey?: string;
   createdAt: number;
 }
 
@@ -28,10 +39,17 @@ export function normalizeOwnedDatabase(input: unknown): OwnedDatabase | undefine
   const id = readString(input, "id") || avID;
   const viewID = readString(input, "viewID") || undefined;
   const homeDocId = readString(input, "homeDocId") || undefined;
+  const rawSource = readString(input, "source");
+  const source: OwnedDatabaseSource | undefined =
+    rawSource === "managed" || rawSource === "collected" ? rawSource : undefined;
   const createdAt =
     typeof input.createdAt === "number" && Number.isFinite(input.createdAt)
       ? input.createdAt
       : Date.now();
+  const typeId = input.typeId !== undefined
+    ? normalizeDatabaseTypeId(input.typeId)
+    : undefined;
+  const templateKey = readString(input, "templateKey") || undefined;
 
   return {
     id,
@@ -40,6 +58,9 @@ export function normalizeOwnedDatabase(input: unknown): OwnedDatabase | undefine
     avBlockID,
     ...(viewID ? { viewID } : {}),
     ...(homeDocId ? { homeDocId } : {}),
+    ...(source ? { source } : {}),
+    ...(typeId ? { typeId } : {}),
+    ...(templateKey ? { templateKey } : {}),
     createdAt,
   };
 }

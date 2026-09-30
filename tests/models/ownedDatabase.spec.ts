@@ -12,6 +12,50 @@ describe("normalizeOwnedDatabase", () => {
       normalizeOwnedDatabase({ name: "Tasks", avID: "av-1", avBlockID: "b-1" }),
     ).toMatchObject({ name: "Tasks", avID: "av-1", avBlockID: "b-1" });
   });
+
+  it("keeps typeId when valid", () => {
+    expect(
+      normalizeOwnedDatabase({
+        name: "Tasks",
+        avID: "av-1",
+        avBlockID: "b-1",
+        typeId: "task",
+      }),
+    ).toMatchObject({ typeId: "task" });
+  });
+
+  it("normalizes unknown typeId to generic", () => {
+    expect(
+      normalizeOwnedDatabase({
+        name: "X",
+        avID: "av-1",
+        avBlockID: "b-1",
+        typeId: "nope",
+      }),
+    ).toMatchObject({ typeId: "generic" });
+  });
+
+  it("keeps templateKey when present", () => {
+    expect(
+      normalizeOwnedDatabase({
+        name: "任务清单",
+        avID: "av-1",
+        avBlockID: "b-1",
+        templateKey: "tasks",
+      }),
+    ).toMatchObject({ templateKey: "tasks" });
+  });
+
+  it("drops blank templateKey", () => {
+    const normalized = normalizeOwnedDatabase({
+      name: "X",
+      avID: "av-1",
+      avBlockID: "b-1",
+      templateKey: "   ",
+    });
+    expect(normalized).toBeDefined();
+    expect("templateKey" in normalized!).toBe(false);
+  });
 });
 
 describe("normalizeOwnedDatabases", () => {
@@ -22,6 +66,13 @@ describe("normalizeOwnedDatabases", () => {
       { name: "Dup", avID: "av-1", avBlockID: "b1b" },
     ]);
     expect(list.map((d) => d.name)).toEqual(["Alpha", "Zed"]);
+  });
+
+  it("preserves templateKey through list normalize", () => {
+    const list = normalizeOwnedDatabases([
+      { name: "任务清单", avID: "av-1", avBlockID: "b1", templateKey: "tasks" },
+    ]);
+    expect(list[0]?.templateKey).toBe("tasks");
   });
 });
 

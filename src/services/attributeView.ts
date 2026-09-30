@@ -52,6 +52,22 @@ export async function bindDocumentToDatabase(input: {
     await fetchSyncPost("/api/av/addAttributeViewBlocks", body),
     "Failed to bind document to database",
   );
+
+  // Native under-title panel reads custom-avs; verify bind actually stuck
+  // (broken mirror AVs get auto-unbound by getAttributeViewKeys).
+  const keys = await fetchSyncPost("/api/av/getAttributeViewKeys", { id: input.docId });
+  const panels = Array.isArray(keys?.data) ? keys.data : [];
+  const bound = panels.some(
+    (panel) =>
+      typeof panel === "object"
+      && panel !== null
+      && (panel as { avID?: string }).avID === input.avID,
+  );
+  if (!bound) {
+    throw new Error(
+      "已调用绑定，但文档标题下仍读不到该库属性（常见于旧版「直接写文件」创建的库）。请删除该库后重新「新建」。",
+    );
+  }
 }
 
 export async function unbindDocumentFromDatabase(input: {
@@ -81,23 +97,46 @@ export async function listDatabaseBoundDocs(avID: string): Promise<DatabaseBound
   );
 
   const root = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
-  const rows = Array.isArray(root.rows)
-    ? root.rows
-    : Array.isArray(data)
-      ? data
-      : Array.isArray(root.blockIDs)
-        ? (root.blockIDs as unknown[]).map((id) => ({ id, content: String(id) }))
-        : [];
+  let rows: unknown[] = [];
+  if (Array.isArray(root.rows)) {
+    rows = root.rows;
+  } else if (
+    typeof root.rows === "object"
+    && root.rows !== null
+    && Array.isArray((root.rows as Record<string, unknown>).values)
+  ) {
+    rows = (root.rows as Record<string, unknown>).values as unknown[];
+  } else if (Array.isArray(data)) {
+    rows = data;
+  } else if (Array.isArray(root.blockIDs)) {
+    rows = (root.blockIDs as unknown[]).map((id) => ({ id, content: String(id) }));
+  }
 
   return rows.flatMap((row) => {
     if (typeof row === "string") return [{ id: row, content: row }];
     if (typeof row !== "object" || row === null) return [];
     const r = row as Record<string, unknown>;
+    const block =
+      typeof r.block === "object" && r.block !== null
+        ? (r.block as Record<string, unknown>)
+        : undefined;
     const id =
-      typeof r.id === "string" ? r.id : typeof r.blockID === "string" ? r.blockID : "";
+      typeof block?.id === "string"
+        ? block.id
+        : typeof r.id === "string"
+          ? r.id
+          : typeof r.blockID === "string"
+            ? r.blockID
+            : "";
     if (!id) return [];
     const content =
-      typeof r.content === "string" ? r.content : typeof r.name === "string" ? r.name : id;
+      typeof block?.content === "string"
+        ? block.content
+        : typeof r.content === "string"
+          ? r.content
+          : typeof r.name === "string"
+            ? r.name
+            : id;
     return [{ id, content }];
   });
 }
