@@ -186,7 +186,11 @@ describe("joinTableByKey", () => {
       templateKey: "tasks",
       nameOf: expect.any(Function),
     });
-    expect(migrateMock).toHaveBeenCalledWith({ docId: "doc-1", target: tasks });
+    expect(migrateMock).toHaveBeenCalledWith({
+      docId: "doc-1",
+      target: tasks,
+      ownedAvIDs: ["av-tasks"],
+    });
     expect(ensureColsMock).toHaveBeenCalledWith(tasks);
 
     const saved = saveSettingsMock.mock.calls[0]![1];
@@ -204,9 +208,37 @@ describe("joinTableByKey", () => {
 
     expect(result.kind).toBe("bound");
     expect(result.db).toEqual(tasks);
-    expect(migrateMock).toHaveBeenCalledWith({ docId: "doc-1", target: tasks });
+    expect(migrateMock).toHaveBeenCalledWith({
+      docId: "doc-1",
+      target: tasks,
+      ownedAvIDs: ["av-tasks"],
+    });
     expect(saveSettingsMock).toHaveBeenCalled();
     expect(refreshMock).toHaveBeenCalledWith("doc-1", plugin);
+  });
+
+  it("passes the catalog avID set so NATIVE bindings survive the exclusive bind", async () => {
+    const other = db({ avID: "av-other", name: "其他表格" });
+    loadSettingsMock.mockResolvedValue({
+      ownedDatabases: [tasks, other],
+      ownedDbPrimaryByType: {},
+      ownedDbLastAvID: "",
+      showUnderTitlePanel: true,
+    } as never);
+    ensureTableMock.mockResolvedValue({ db: tasks, created: false });
+    // The doc also carries a NATIVE (non-catalog) database binding.
+    fetchAttributeViewsMock.mockResolvedValue([{ avID: "av-native-日记" }] as never);
+    ensureColsMock.mockResolvedValue({ added: [] });
+
+    await joinTableByKey({ plugin, docId: "doc-1", templateKey: "tasks" });
+
+    // The unbind scope handed to migrate is the catalog set only —
+    // "av-native-日记" is absent, so the migrate layer never unbinds it.
+    expect(migrateMock).toHaveBeenCalledWith({
+      docId: "doc-1",
+      target: tasks,
+      ownedAvIDs: ["av-tasks", "av-other"],
+    });
   });
 
   it("already: doc solely bound to the table → early return, no migrate/persist/refresh", async () => {

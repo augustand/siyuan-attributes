@@ -10,8 +10,13 @@ import { assertSiyuanSuccess, SiyuanApiError } from "./siyuanResponse";
 
 /**
  * Hang a document onto one owned database exclusively.
- * Removes the doc from every other AV currently bound under the title
- * (not only those still listed in the owned catalog), then binds target.
+ * Removes the doc from every other AV currently bound under the title,
+ * then binds target.
+ *
+ * Mutex scoping: when `ownedAvIDs` (the plugin catalog) is provided, ONLY
+ * catalog tables are unbound — the user's native, non-catalog bindings on
+ * the document survive. Without it every non-target binding is removed
+ * (legacy behavior, kept for callers that cannot supply the catalog).
  */
 export async function migrateDocumentToOwnedDatabase(input: {
   docId: string;
@@ -27,9 +32,11 @@ export async function migrateDocumentToOwnedDatabase(input: {
     currentlyBound = panels.map((p) => p.avID);
   }
 
+  const ownedScope = input.ownedAvIDs ? new Set(input.ownedAvIDs) : undefined;
   const unboundAvIDs: string[] = [];
   for (const avID of currentlyBound) {
     if (avID === input.target.avID) continue;
+    if (ownedScope && !ownedScope.has(avID)) continue;
     await unbindDocumentFromDatabase({ avID, docId: input.docId });
     unboundAvIDs.push(avID);
   }

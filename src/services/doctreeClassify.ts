@@ -168,7 +168,14 @@ export async function joinTableByKey(input: {
     return { kind: "already", db, addedColumns: [] };
   }
 
-  await migrateDocumentToOwnedDatabase({ docId: input.docId, target: db });
+  // Mutex scoping: only unbind tables that belong to OUR catalog —
+  // the user's native bindings on the document must survive the join.
+  const catalog = await loadPanelSettings(pluginDataStore(input.plugin));
+  await migrateDocumentToOwnedDatabase({
+    docId: input.docId,
+    target: db,
+    ownedAvIDs: catalog.ownedDatabases.map((d) => d.avID),
+  });
 
   let addedColumns: string[] = [];
   try {

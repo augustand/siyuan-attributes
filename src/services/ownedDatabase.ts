@@ -459,15 +459,20 @@ export async function createOwnedDatabase(input: {
 
 export type OwnedDatabaseHealth = "ok" | "broken" | "missing";
 
+/**
+ * Health = can the AV JSON still be read off disk. The kernel's
+ * getMirrorDatabaseBlocks returns `refDefs: []` for EVERYTHING on 3.8.4 —
+ * including long-established in-use databases — so it is NOT a valid health
+ * primitive and is never consulted here. "broken" stays in the type for UI
+ * compatibility but is no longer produced.
+ */
 export async function checkOwnedDatabaseHealth(avID: string): Promise<OwnedDatabaseHealth> {
-  const av = await fetchSyncPost("/api/av/getAttributeView", { id: avID });
-  if (av?.code !== 0 || av.data == null) return "missing";
-
-  const mirror = await fetchSyncPost("/api/av/getMirrorDatabaseBlocks", { avID });
-  const data = mirror?.data as { refDefs?: unknown[] } | null | undefined;
-  const refs = Array.isArray(data?.refDefs) ? data.refDefs : [];
-  if (mirror?.code !== 0 || refs.length < 1) return "broken";
-  return "ok";
+  try {
+    const av = await readAttributeViewFile(avID);
+    return av ? "ok" : "missing";
+  } catch {
+    return "missing";
+  }
 }
 
 export async function checkOwnedDatabasesHealth(

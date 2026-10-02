@@ -96,6 +96,53 @@ describe("migrateDocumentToOwnedDatabase", () => {
     expect(unbindMock).toHaveBeenCalledTimes(2);
     expect(bindMock).toHaveBeenCalled();
   });
+
+  it("with ownedAvIDs: NATIVE non-catalog bindings survive the exclusive bind", async () => {
+    const target = {
+      id: "task",
+      name: "任务",
+      avID: "task",
+      avBlockID: "blk-task",
+      createdAt: 1,
+    };
+    const result = await migrateDocumentToOwnedDatabase({
+      docId: "doc-1",
+      target,
+      ownedAvIDs: ["task", "old-catalog-table"],
+      currentlyBoundAvIDs: ["native-日记库", "task", "old-catalog-table"],
+    });
+    expect(result.unboundAvIDs).toEqual(["old-catalog-table"]);
+    expect(unbindMock).toHaveBeenCalledTimes(1);
+    expect(unbindMock).toHaveBeenCalledWith({ avID: "old-catalog-table", docId: "doc-1" });
+    expect(unbindMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ avID: "native-日记库" }),
+    );
+    // Target still bound → no rebind
+    expect(bindMock).not.toHaveBeenCalled();
+  });
+
+  it("with ownedAvIDs: intersection also applies to live-fetched bindings", async () => {
+    const target = {
+      id: "task",
+      name: "任务",
+      avID: "task",
+      avBlockID: "blk-task",
+      createdAt: 1,
+    };
+    fetchMock.mockResolvedValue([
+      { avID: "native", name: "", fields: [], documentID: "doc-1" } as never,
+      { avID: "task", name: "", fields: [], documentID: "doc-1" } as never,
+      { avID: "old-catalog", name: "", fields: [], documentID: "doc-1" } as never,
+    ]);
+    const result = await migrateDocumentToOwnedDatabase({
+      docId: "doc-1",
+      target,
+      ownedAvIDs: ["task", "old-catalog"],
+    });
+    expect(result.unboundAvIDs).toEqual(["old-catalog"]);
+    expect(unbindMock).toHaveBeenCalledTimes(1);
+    expect(unbindMock).toHaveBeenCalledWith({ avID: "old-catalog", docId: "doc-1" });
+  });
 });
 
 describe("findForeignDatabaseBlocksInDoc", () => {

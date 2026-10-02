@@ -44,14 +44,12 @@ const plugin = {
   saveData: vi.fn(),
 } as never;
 
-/** Healthy kernel: every AV readable and mirror-registered. */
+/** Healthy kernel: every AV file reads back off disk (health = "ok"). */
 function mockHealthyKernel(): void {
   fetchSyncPostMock.mockImplementation(async (url: string) => {
-    if (url === "/api/av/getAttributeView") {
-      return { code: 0, msg: "", data: { av: { name: "x", keyValues: [] } } };
-    }
-    if (url === "/api/av/getMirrorDatabaseBlocks") {
-      return { code: 0, msg: "", data: { refDefs: [{ refID: "r", defIDs: [] }] } };
+    if (url === "/api/file/getFile") {
+      // Raw file body — readable AV JSON (dual-shape reader)
+      return { id: "x", name: "x", keyValues: [] };
     }
     if (url === "/api/notebook/lsNotebooks") {
       return {
@@ -64,14 +62,11 @@ function mockHealthyKernel(): void {
   });
 }
 
-/** Broken mirrors → every db health-checks as "broken". */
+/** Unreadable AV files → every db health-checks as "missing". */
 function mockBrokenKernel(): void {
   fetchSyncPostMock.mockImplementation(async (url: string) => {
-    if (url === "/api/av/getAttributeView") {
-      return { code: 0, msg: "", data: { av: { name: "x", keyValues: [] } } };
-    }
-    if (url === "/api/av/getMirrorDatabaseBlocks") {
-      return { code: 0, msg: "", data: { refDefs: [] } };
+    if (url === "/api/file/getFile") {
+      return { code: 404, msg: "file not found", data: null };
     }
     if (url === "/api/notebook/lsNotebooks") {
       return { code: 0, msg: "", data: { notebooks: [{ id: "nb-a", name: "A" }] } };
@@ -142,10 +137,10 @@ describe("ensureTableForTemplateKey", () => {
     expect(saveSettingsMock).not.toHaveBeenCalled();
   });
 
-  it("ignores unhealthy tables and creates a fresh one", async () => {
+  it("ignores tables whose AV file is unreadable and creates a fresh one", async () => {
     mockBrokenKernel();
     loadSettingsMock.mockResolvedValue({
-      ownedDatabases: [db("av-broken", "tasks")],
+      ownedDatabases: [db("av-gone", "tasks")],
       ownedDbNotebookId: "nb-saved",
       ownedDbPrimaryByType: {},
       ownedDbLastAvID: "",
