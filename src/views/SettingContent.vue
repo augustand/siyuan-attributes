@@ -63,6 +63,76 @@
       <t-button variant="outline" :loading="saving" @click="reset">{{ labels.reset }}</t-button>
     </div>
 
+    <div class="section-head ws-head">
+      <h3>{{ labels.workspaceAll }}</h3>
+      <div class="head-actions">
+        <t-button
+          v-for="chip in wsFilterChips"
+          :key="chip.value"
+          size="small"
+          :theme="wsFilter === chip.value ? 'primary' : 'default'"
+          variant="outline"
+          @click="wsFilter = chip.value"
+        >
+          {{ chip.label }}
+        </t-button>
+        <t-button
+          v-if="wsSelectedEntries.length"
+          size="small"
+          theme="danger"
+          variant="outline"
+          :loading="wsDeleting"
+          @click="onDeleteSelected"
+        >
+          {{ labels.orphanDelete }}({{ wsSelectedEntries.length }})
+        </t-button>
+      </div>
+    </div>
+    <div v-if="wsLoading && !wsEntries.length" class="muted">{{ labels.loading }}</div>
+    <p v-else-if="!filteredWsRows.length" class="muted">{{ labels.noHits }}</p>
+    <div v-else class="ws-list">
+      <div v-for="row in filteredWsRows" :key="row.entry.avID" class="rule-card ws-card">
+        <div class="name-row">
+          <t-checkbox
+            v-if="isDeletableOrigin(row.entry.origin)"
+            class="ws-orphan-check"
+            :checked="wsOrphanSelected.has(row.entry.avID)"
+            @change="(checked: boolean) => toggleOrphanSelected(row.entry.avID, checked)"
+          />
+          <div class="ws-name-wrap">
+            <div class="ws-name" :title="wsEntryName(row.entry)">
+              {{ wsEntryName(row.entry) }}
+            </div>
+            <div class="muted">{{ wsEntrySubline(row.entry) }}</div>
+            <div v-if="row.entry.origin === 'unreferenced'" class="muted">
+              {{ labels.orphanHint }}
+            </div>
+          </div>
+          <span class="badge ws-origin">{{ wsOriginLabel(row.entry.origin) }}</span>
+          <span v-if="row.entry.health !== 'ok'" class="badge">{{ labels.unusable }}</span>
+        </div>
+        <div v-if="!row.db && row.entry.origin === 'active'" class="card-actions">
+          <t-button
+            v-if="row.entry.hostDocID"
+            size="small"
+            variant="outline"
+            @click="openHostDoc(row.entry.hostDocID)"
+          >
+            {{ labels.openHost }}
+          </t-button>
+          <t-button
+            v-if="row.entry.blockID"
+            size="small"
+            variant="outline"
+            @click="adoptEntry(row.entry)"
+          >
+            {{ labels.adopt }}
+          </t-button>
+          <span v-else class="muted">{{ labels.adoptUnavailable }}</span>
+        </div>
+      </div>
+    </div>
+
     <t-dialog
       v-model:visible="showCreate"
       :header="labels.createTitle"
@@ -106,9 +176,16 @@ import {
   getActiveNotebookId,
   listNotebooks,
   openDocument,
+  ownedFromSearchHit,
   pickCreateNotebookId,
   type OwnedDatabaseHealth,
 } from "@/services/ownedDatabase";
+import {
+  listWorkspaceDatabases,
+  removeDatabaseCompletely,
+  type WorkspaceDatabaseEntry,
+  type WorkspaceDbOrigin,
+} from "@/services/workspaceDatabase";
 import { deleteOwnedDatabaseHome } from "@/services/ownedDatabaseMigrate";
 import {
   DEFAULT_TABLE_TEMPLATES,
@@ -134,6 +211,18 @@ const createNotebookId = ref("");
 const notebookOptions = ref<Array<{ label: string; value: string }>>([]);
 const notebooks = ref<Array<{ id: string; name: string }>>([]);
 const healthMap = ref<Record<string, OwnedDatabaseHealth>>({});
+const wsEntries = ref<WorkspaceDatabaseEntry[]>([]);
+const wsLoading = ref(false);
+let wsLoadingSeq = 0;
+type WsFilterValue = "all" | "active" | "unreferenced";
+const wsFilter = ref<WsFilterValue>("all");
+const wsOrphanSelected = ref<Set<string>>(new Set());
+const wsDeleting = ref(false);
+
+/** Rows that offer checkbox + batch delete: every non-catalog entry. */
+function isDeletableOrigin(origin: WorkspaceDbOrigin): boolean {
+  return origin === "active" || origin === "unreferenced";
+}
 
 const startOptions = computed(() => [
   { value: "blank" as TableStartKey, label: getI18nText("ownedDb.startBlank", "空白表格") },
@@ -216,6 +305,30 @@ const labels = computed(() => ({
   backfill: getI18nText("ownedDb.backfill", "补齐列"),
   backfillNone: getI18nText("ownedDb.backfillNone", "列已齐全"),
   columnsAdded: getI18nText("ownedDb.columnsAdded", "已补齐字段：{cols}"),
+  loading: getI18nText("loading", "加载中…"),
+  noHits: getI18nText("ownedDb.noHits", "没有匹配的数据库"),
+  workspaceAll: getI18nText("ownedDb.workspaceAll", "工作区全部数据库"),
+  originManaged: getI18nText("ownedDb.originManaged", "托管"),
+  originCollected: getI18nText("ownedDb.originCollected", "已收录"),
+  originActive: getI18nText("ownedDb.originActive", "未收录"),
+  originOrphan: getI18nText("ownedDb.originOrphan", "无引用"),
+  adopt: getI18nText("ownedDb.adopt", "采纳"),
+  adoptOk: getI18nText("ownedDb.adoptOk", "已采纳「{name}」"),
+  adoptUnavailable: getI18nText("ownedDb.adoptUnavailable", "缺少数据库块标识，无法采纳"),
+  orphanHint: getI18nText("ownedDb.orphanHint", "无引用的数据库，未被任何文档使用"),
+  openHost: getI18nText("ownedDb.openHost", "打开宿主"),
+  orphanDelete: getI18nText("ownedDb.orphanDelete", "删除选中"),
+  orphanDeleteConfirmTitle: getI18nText("ownedDb.orphanDeleteConfirmTitle", "删除孤儿库"),
+  orphanDeleteConfirmBody: getI18nText(
+    "ownedDb.orphanDeleteConfirmBody",
+    "将永久删除选中数据库的数据；被文档引用的会一并移除其嵌入块。不可恢复。",
+  ),
+  orphanDeleteOk: getI18nText("ownedDb.orphanDeleteOk", "已删除 {n} 个"),
+  orphanDeletePartial: getI18nText("ownedDb.orphanDeletePartial", "{n} 个删除失败"),
+  wsFilterAll: getI18nText("ownedDb.wsFilterAll", "全部"),
+  wsFilterActive: getI18nText("ownedDb.wsFilterActive", "未收录"),
+  wsFilterOrphan: getI18nText("ownedDb.wsFilterOrphan", "无引用"),
+  close: getI18nText("close", "关闭"),
 }));
 
 const brokenCount = computed(
@@ -231,6 +344,117 @@ const notebookHint = computed(() => {
   const name = nb?.name || createNotebookId.value || "—";
   return getI18nText("ownedDb.notebookHint", `将存放在：${name}`);
 });
+
+interface WsRow {
+  entry: WorkspaceDatabaseEntry;
+  /** Catalog entry when the row is managed/collected — membership is shown via the origin badge. */
+  db?: OwnedDatabase;
+}
+
+const wsRows = computed<WsRow[]>(() =>
+  wsEntries.value.map((entry) => ({
+    entry,
+    db: draft.ownedDatabases.find((d) => d.avID === entry.avID),
+  })),
+);
+
+const filteredWsRows = computed(() => {
+  if (wsFilter.value === "active") {
+    return wsRows.value.filter((row) => row.entry.origin === "active");
+  }
+  if (wsFilter.value === "unreferenced") {
+    return wsRows.value.filter((row) => row.entry.origin === "unreferenced");
+  }
+  return wsRows.value;
+});
+
+const wsFilterChips = computed(() => [
+  { value: "all" as WsFilterValue, label: labels.value.wsFilterAll },
+  { value: "active" as WsFilterValue, label: labels.value.wsFilterActive },
+  { value: "unreferenced" as WsFilterValue, label: labels.value.wsFilterOrphan },
+]);
+
+/** Selected deletable entries, intersected with live entries so stale ids
+ * never delete; entries carry blockID so the block delete can travel. */
+const wsSelectedEntries = computed(() =>
+  wsEntries.value.filter(
+    (e) => isDeletableOrigin(e.origin) && wsOrphanSelected.value.has(e.avID),
+  ),
+);
+
+function toggleOrphanSelected(avID: string, checked: boolean) {
+  const next = new Set(wsOrphanSelected.value);
+  if (checked) next.add(avID);
+  else next.delete(avID);
+  wsOrphanSelected.value = next;
+}
+
+function openHostDoc(hostDocID: string) {
+  void openDocument(hostDocID, plugin).catch((e) => {
+    console.warn("openHostDoc failed", e);
+  });
+}
+
+/** Batch-delete the selected databases completely (block + AV file), sequential loop. */
+function onDeleteSelected() {
+  const entries = wsSelectedEntries.value;
+  if (!entries.length) return;
+  const dialog = DialogPlugin.confirm({
+    header: labels.value.orphanDeleteConfirmTitle,
+    body: labels.value.orphanDeleteConfirmBody,
+    confirmBtn: labels.value.orphanDelete,
+    cancelBtn: labels.value.close,
+    theme: "danger",
+    onConfirm: async () => {
+      wsDeleting.value = true;
+      let ok = 0;
+      let failed = 0;
+      try {
+        for (const entry of entries) {
+          try {
+            await removeDatabaseCompletely({ avID: entry.avID, blockID: entry.blockID });
+            ok += 1;
+          } catch (e) {
+            failed += 1;
+            console.warn("removeDatabaseCompletely failed", entry.avID, e);
+          }
+        }
+        wsOrphanSelected.value = new Set();
+        if (ok) {
+          MessagePlugin.success(labels.value.orphanDeleteOk.replace("{n}", String(ok)));
+        }
+        if (failed) {
+          MessagePlugin.error(labels.value.orphanDeletePartial.replace("{n}", String(failed)));
+        }
+        await refreshWorkspace();
+      } finally {
+        wsDeleting.value = false;
+        dialog.hide();
+      }
+    },
+  });
+}
+
+function wsOriginLabel(origin: WorkspaceDbOrigin): string {
+  if (origin === "managed") return labels.value.originManaged;
+  if (origin === "collected") return labels.value.originCollected;
+  if (origin === "active") return labels.value.originActive;
+  return labels.value.originOrphan;
+}
+
+function wsEntryName(entry: WorkspaceDatabaseEntry): string {
+  if (entry.name) return entry.name;
+  if (entry.hostPath) {
+    const base = entry.hostPath.split("/").pop()?.trim();
+    if (base) return base;
+  }
+  return entry.avID;
+}
+
+function wsEntrySubline(entry: WorkspaceDatabaseEntry): string {
+  if (entry.origin === "unreferenced") return entry.avID;
+  return entry.hostPath || entry.avID;
+}
 
 function syncDraftFromStore(): void {
   const next = normalizePanelSettings(settingsStore.settings);
@@ -289,6 +513,52 @@ async function refreshHealth() {
     healthMap.value = await checkOwnedDatabasesHealth(draft.ownedDatabases);
   } catch {
     /* ignore */
+  }
+}
+
+async function refreshWorkspace() {
+  const seq = ++wsLoadingSeq;
+  wsLoading.value = true;
+  try {
+    const entries = await listWorkspaceDatabases({ owned: draft.ownedDatabases });
+    if (seq !== wsLoadingSeq) return;
+    wsEntries.value = entries;
+  } catch (e) {
+    if (seq !== wsLoadingSeq) return;
+    console.warn("listWorkspaceDatabases failed", e);
+    wsEntries.value = [];
+  } finally {
+    if (seq === wsLoadingSeq) wsLoading.value = false;
+  }
+}
+
+/** Adopt an active (not-yet-collected) workspace database into the catalog. */
+async function adoptEntry(entry: WorkspaceDatabaseEntry) {
+  if (!entry.blockID) return;
+  const db = ownedFromSearchHit({
+    avID: entry.avID,
+    avName: entry.name,
+    blockID: entry.blockID,
+    hPath: entry.hostPath ?? "",
+  });
+  if (draft.ownedDatabases.some((x) => x.avID === db.avID)) {
+    MessagePlugin.info(getI18nText("ownedDb.exists", "该库已在名单中"));
+    return;
+  }
+  try {
+    await settingsStore.updateSettings(
+      normalizePanelSettings({
+        ...settingsStore.settings,
+        showUnderTitlePanel: false,
+        ownedDatabases: [...draft.ownedDatabases, db],
+      }),
+    );
+    syncDraftFromStore();
+    await refreshHealth();
+    void refreshWorkspace();
+    MessagePlugin.success(labels.value.adoptOk.replace("{name}", db.name));
+  } catch (e) {
+    MessagePlugin.error(e instanceof Error ? e.message : String(e));
   }
 }
 
@@ -423,6 +693,7 @@ onMounted(async () => {
     syncDraftFromStore();
     await prepareCreateNotebook();
     await refreshHealth();
+    void refreshWorkspace();
   } catch (error) {
     MessagePlugin.error(error instanceof Error ? error.message : String(error));
   }
@@ -553,5 +824,43 @@ async function reset(): Promise<void> {
   color: var(--td-text-color-secondary);
   font-size: 12px;
   cursor: pointer;
+}
+.ws-head {
+  margin-top: 20px;
+}
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ws-list {
+  display: flex;
+  flex-direction: column;
+}
+.ws-card {
+  margin-bottom: 8px;
+}
+.ws-name-wrap {
+  flex: 1;
+  min-width: 0;
+}
+.ws-name {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-name-wrap .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-origin {
+  color: var(--td-text-color-secondary, #888);
+  background: var(--td-bg-color-secondarycontainer, rgba(0, 0, 0, 0.04));
+}
+.ws-orphan-check {
+  flex-shrink: 0;
 }
 </style>

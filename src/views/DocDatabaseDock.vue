@@ -73,12 +73,24 @@
 
     <section>
       <div class="section-head">
-        <h3>{{ labels.ours }}</h3>
-        <t-button size="small" theme="primary" variant="outline" @click="onCreateClick">
-          {{ labels.create }}
-        </t-button>
+        <h3>{{ showWorkspace ? labels.workspaceAll : labels.ours }}</h3>
+        <div class="head-actions">
+          <t-button
+            size="small"
+            theme="primary"
+            variant="outline"
+            :loading="wsLoading"
+            @click="toggleWorkspace"
+          >
+            {{ showWorkspace ? labels.showCatalog : labels.showWorkspace }}
+          </t-button>
+          <t-button size="small" theme="primary" variant="outline" @click="onCreateClick">
+            {{ labels.create }}
+          </t-button>
+        </div>
       </div>
 
+      <template v-if="!showWorkspace">
       <div v-if="brokenCount" class="health-banner">
         <span>{{ labels.brokenBanner.replace("{n}", String(brokenCount)) }}</span>
         <t-button size="small" theme="danger" variant="outline" @click="cleanBroken">
@@ -155,6 +167,126 @@
           </div>
         </div>
       </div>
+      </template>
+
+      <template v-else>
+        <div v-if="wsLoading && !wsEntries.length" class="muted">{{ labels.loading }}</div>
+        <p v-else-if="!wsEntries.length" class="muted">{{ labels.noHits }}</p>
+        <div v-else class="list">
+          <div v-for="group in wsGroups" :key="group.origin" class="ws-group">
+            <div class="ws-group-head">
+              <span>{{ wsOriginLabel(group.origin) }}</span>
+              <span class="ws-group-count">{{ group.rows.length }}</span>
+              <t-button
+                v-if="isDeletableOrigin(group.origin) && wsSelectedEntries.length"
+                class="ws-orphan-delete"
+                size="small"
+                variant="text"
+                theme="danger"
+                :loading="wsDeleting"
+                @click="onDeleteSelected"
+              >
+                {{ labels.orphanDelete }}({{ wsSelectedEntries.length }})
+              </t-button>
+            </div>
+            <div v-for="row in group.rows" :key="row.entry.avID" class="row ws-row">
+              <t-checkbox
+                v-if="isDeletableOrigin(group.origin)"
+                class="ws-orphan-check"
+                :checked="wsOrphanSelected.has(row.entry.avID)"
+                @change="(checked: boolean) => toggleOrphanSelected(row.entry.avID, checked)"
+              />
+              <div class="name-cell">
+                <t-input
+                  v-if="renaming && renaming.avID === row.entry.avID"
+                  v-model="renaming.name"
+                  class="rename-input"
+                  size="small"
+                  autofocus
+                  @enter="commitRename"
+                  @blur="commitRename"
+                  @keydown="onRenameKeydown"
+                />
+                <button
+                  v-else-if="row.db"
+                  type="button"
+                  class="name name-btn"
+                  :title="dbDisplayName(row.db)"
+                  @click="startRename(row.db)"
+                >
+                  {{ dbDisplayName(row.db) }}
+                </button>
+                <div v-else class="ws-name-wrap">
+                  <div class="name" :title="wsEntryName(row.entry)">
+                    {{ wsEntryName(row.entry) }}
+                  </div>
+                  <div class="muted path">{{ wsEntrySubline(row.entry) }}</div>
+                  <div v-if="row.entry.origin === 'unreferenced'" class="muted path">
+                    {{ labels.orphanHint }}
+                  </div>
+                </div>
+                <span class="badge ws-origin">{{ wsOriginLabel(row.entry.origin) }}</span>
+                <span v-if="row.entry.health !== 'ok'" class="badge">
+                  {{ labels.unusable }}
+                </span>
+              </div>
+              <div class="row-actions">
+                <template v-if="row.db">
+                  <t-button
+                    size="small"
+                    variant="text"
+                    :disabled="(healthMap[row.entry.avID] ?? 'ok') !== 'ok'"
+                    @click="openDocs(row.db)"
+                  >
+                    {{ labels.docs }}
+                  </t-button>
+                  <t-button
+                    v-if="row.db.homeDocId"
+                    size="small"
+                    variant="text"
+                    @click="openHome(row.db.homeDocId)"
+                  >
+                    {{ labels.open }}
+                  </t-button>
+                  <t-button size="small" variant="text" @click="onBackfillColumns(row.db)">
+                    {{ labels.backfill }}
+                  </t-button>
+                  <t-button
+                    size="small"
+                    variant="text"
+                    theme="danger"
+                    @click="removeOwned(row.entry.avID)"
+                  >
+                    {{ labels.remove }}
+                  </t-button>
+                </template>
+                <template v-else>
+                  <t-button
+                    v-if="row.entry.hostDocID"
+                    size="small"
+                    variant="text"
+                    @click="openHostDoc(row.entry.hostDocID)"
+                  >
+                    {{ labels.openHost }}
+                  </t-button>
+                  <t-button
+                    v-if="canAdopt(row.entry)"
+                    size="small"
+                    variant="text"
+                    theme="primary"
+                    @click="adoptEntry(row.entry)"
+                  >
+                    {{ labels.adopt }}
+                  </t-button>
+                  <span v-else-if="row.entry.origin === 'active'" class="muted ws-adopt-hint">
+                    {{ labels.adoptUnavailable }}
+                  </span>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
     </section>
 
     <section class="more">
@@ -364,6 +496,12 @@ import {
   displayOwnedDatabaseName,
   filterOwnedDatabases,
 } from "@/models/ownedDatabaseHang";
+import {
+  listWorkspaceDatabases,
+  removeDatabaseCompletely,
+  type WorkspaceDatabaseEntry,
+  type WorkspaceDbOrigin,
+} from "@/services/workspaceDatabase";
 import { useDocDatabaseStore } from "@/store/docDatabase";
 import { useConfigStore } from "@/store/rules";
 import { onSettingsChanged } from "@/services/settingEvents";
@@ -404,6 +542,12 @@ const generating = ref(false);
 const listKeyword = ref("");
 const brokenOnly = ref(false);
 const renaming = ref<{ avID: string; name: string } | null>(null);
+const showWorkspace = ref(true); // 默认工作区视图：上来就看到所有数据库
+const wsEntries = ref<WorkspaceDatabaseEntry[]>([]);
+const wsLoading = ref(false);
+let wsLoadingSeq = 0;
+const wsOrphanSelected = ref<Set<string>>(new Set());
+const wsDeleting = ref(false);
 
 const startOptions = computed(() => [
   { value: "blank" as TableStartKey, label: labels.value.startBlank },
@@ -542,6 +686,26 @@ const labels = computed(() => ({
   queryValuePh: getI18nText("ownedDb.queryValuePh", "筛选值"),
   queryHits: getI18nText("ownedDb.queryHits", "{n} 篇命中"),
   queryClear: getI18nText("ownedDb.queryClear", "清除筛选"),
+  workspaceAll: getI18nText("ownedDb.workspaceAll", "工作区全部数据库"),
+  showWorkspace: getI18nText("ownedDb.showWorkspace", "工作区"),
+  showCatalog: getI18nText("ownedDb.showCatalog", "表格目录"),
+  originManaged: getI18nText("ownedDb.originManaged", "托管"),
+  originCollected: getI18nText("ownedDb.originCollected", "已收录"),
+  originActive: getI18nText("ownedDb.originActive", "未收录"),
+  originOrphan: getI18nText("ownedDb.originOrphan", "无引用"),
+  adopt: getI18nText("ownedDb.adopt", "采纳"),
+  adoptOk: getI18nText("ownedDb.adoptOk", "已采纳「{name}」"),
+  adoptUnavailable: getI18nText("ownedDb.adoptUnavailable", "缺少数据库块标识，无法采纳"),
+  orphanHint: getI18nText("ownedDb.orphanHint", "无引用的数据库，未被任何文档使用"),
+  openHost: getI18nText("ownedDb.openHost", "打开宿主"),
+  orphanDelete: getI18nText("ownedDb.orphanDelete", "删除选中"),
+  orphanDeleteConfirmTitle: getI18nText("ownedDb.orphanDeleteConfirmTitle", "删除孤儿库"),
+  orphanDeleteConfirmBody: getI18nText(
+    "ownedDb.orphanDeleteConfirmBody",
+    "将永久删除选中数据库的数据；被文档引用的会一并移除其嵌入块。不可恢复。",
+  ),
+  orphanDeleteOk: getI18nText("ownedDb.orphanDeleteOk", "已删除 {n} 个"),
+  orphanDeletePartial: getI18nText("ownedDb.orphanDeletePartial", "{n} 个删除失败"),
 }));
 
 const notebookHint = computed(() => {
@@ -572,6 +736,126 @@ const databasesForAdd = computed(() =>
     ? addPickerDatabases.value
     : healthyDatabases.value,
 );
+
+interface WsRow {
+  entry: WorkspaceDatabaseEntry;
+  /** Catalog entry when the row is managed/collected — enables the existing actions. */
+  db?: OwnedDatabase;
+}
+
+interface WsGroup {
+  origin: WorkspaceDbOrigin;
+  rows: WsRow[];
+}
+
+const wsGroups = computed<WsGroup[]>(() => {
+  const byOrigin = new Map<WorkspaceDbOrigin, WsRow[]>();
+  for (const entry of wsEntries.value) {
+    const rows = byOrigin.get(entry.origin) ?? [];
+    rows.push({
+      entry,
+      db: ownedDatabases.value.find((d) => d.avID === entry.avID),
+    });
+    byOrigin.set(entry.origin, rows);
+  }
+  const groups: WsGroup[] = [];
+  for (const origin of ["managed", "collected", "active", "unreferenced"] as const) {
+    const rows = byOrigin.get(origin);
+    if (rows?.length) groups.push({ origin, rows });
+  }
+  return groups;
+});
+
+function wsOriginLabel(origin: WorkspaceDbOrigin): string {
+  if (origin === "managed") return labels.value.originManaged;
+  if (origin === "collected") return labels.value.originCollected;
+  if (origin === "active") return labels.value.originActive;
+  return labels.value.originOrphan;
+}
+
+/** Rows that offer checkbox + batch delete: every non-catalog entry. */
+function isDeletableOrigin(origin: WorkspaceDbOrigin): boolean {
+  return origin === "active" || origin === "unreferenced";
+}
+
+function wsEntryName(entry: WorkspaceDatabaseEntry): string {
+  if (entry.name) return entry.name;
+  if (entry.hostPath) {
+    const base = entry.hostPath.split("/").pop()?.trim();
+    if (base) return base;
+  }
+  return entry.avID;
+}
+
+function wsEntrySubline(entry: WorkspaceDatabaseEntry): string {
+  if (entry.origin === "unreferenced") return entry.avID;
+  return entry.hostPath || entry.avID;
+}
+
+function canAdopt(entry: WorkspaceDatabaseEntry): boolean {
+  return entry.origin === "active" && !!entry.blockID;
+}
+
+/** Selected deletable entries, intersected with live entries so stale ids
+ * never delete; entries carry blockID so the block delete can travel. */
+const wsSelectedEntries = computed(() =>
+  wsEntries.value.filter(
+    (e) => isDeletableOrigin(e.origin) && wsOrphanSelected.value.has(e.avID),
+  ),
+);
+
+function toggleOrphanSelected(avID: string, checked: boolean) {
+  const next = new Set(wsOrphanSelected.value);
+  if (checked) next.add(avID);
+  else next.delete(avID);
+  wsOrphanSelected.value = next;
+}
+
+function openHostDoc(hostDocID: string) {
+  void openDocument(hostDocID, plugin).catch((e) => {
+    console.warn("openHostDoc failed", e);
+  });
+}
+
+/** Batch-delete the selected databases completely (block + AV file), sequential loop. */
+function onDeleteSelected() {
+  const entries = wsSelectedEntries.value;
+  if (!entries.length) return;
+  const dialog = DialogPlugin.confirm({
+    header: labels.value.orphanDeleteConfirmTitle,
+    body: labels.value.orphanDeleteConfirmBody,
+    confirmBtn: labels.value.orphanDelete,
+    cancelBtn: labels.value.close,
+    theme: "danger",
+    onConfirm: async () => {
+      wsDeleting.value = true;
+      let ok = 0;
+      let failed = 0;
+      try {
+        for (const entry of entries) {
+          try {
+            await removeDatabaseCompletely({ avID: entry.avID, blockID: entry.blockID });
+            ok += 1;
+          } catch (e) {
+            failed += 1;
+            console.warn("removeDatabaseCompletely failed", entry.avID, e);
+          }
+        }
+        wsOrphanSelected.value = new Set();
+        if (ok) {
+          MessagePlugin.success(labels.value.orphanDeleteOk.replace("{n}", String(ok)));
+        }
+        if (failed) {
+          MessagePlugin.error(labels.value.orphanDeletePartial.replace("{n}", String(failed)));
+        }
+        await refreshWorkspace();
+      } finally {
+        wsDeleting.value = false;
+        dialog.hide();
+      }
+    },
+  });
+}
 
 const addDocId = computed(() => menuDocId.value || docId.value);
 
@@ -959,6 +1243,57 @@ async function refreshHealth() {
   }
 }
 
+async function refreshWorkspace() {
+  const seq = ++wsLoadingSeq;
+  wsLoading.value = true;
+  try {
+    const entries = await listWorkspaceDatabases({ owned: ownedDatabases.value });
+    if (seq !== wsLoadingSeq) return;
+    wsEntries.value = entries;
+  } catch (e) {
+    if (seq !== wsLoadingSeq) return;
+    console.warn("listWorkspaceDatabases failed", e);
+    wsEntries.value = [];
+  } finally {
+    if (seq === wsLoadingSeq) wsLoading.value = false;
+  }
+}
+
+function toggleWorkspace() {
+  showWorkspace.value = !showWorkspace.value;
+  if (showWorkspace.value) {
+    void refreshWorkspace();
+  } else {
+    wsOrphanSelected.value = new Set();
+  }
+}
+
+/** Adopt an active (not-yet-collected) workspace database into the catalog. */
+async function adoptEntry(entry: WorkspaceDatabaseEntry) {
+  if (!entry.blockID) return;
+  const db = ownedFromSearchHit({
+    avID: entry.avID,
+    avName: entry.name,
+    blockID: entry.blockID,
+    hPath: entry.hostPath ?? "",
+  });
+  if (ownedDatabases.value.some((x) => x.avID === db.avID)) {
+    MessagePlugin.info(getI18nText("ownedDb.exists", "该库已在名单中"));
+    return;
+  }
+  try {
+    // persistOwned refreshes catalog health internally.
+    await persistOwned([...ownedDatabases.value, db]);
+    MessagePlugin.success(labels.value.adoptOk.replace("{name}", db.name));
+    // Back to the catalog so the adopted table shows its full actions.
+    showWorkspace.value = false;
+    void refreshWorkspace();
+    void refreshDocCounts();
+  } catch (e) {
+    MessagePlugin.error(e instanceof Error ? e.message : String(e));
+  }
+}
+
 async function cleanBroken() {
   const next = ownedDatabases.value.filter((db) => {
     const h = healthMap.value[db.avID];
@@ -1203,6 +1538,8 @@ onMounted(async () => {
   await prepareCreateNotebook();
   await refreshHealth();
   void refreshDocCounts();
+  // Default view is the workspace list — load it on mount (上来就能看到所有数据库).
+  void refreshWorkspace();
   offSettingsChanged = onSettingsChanged(() => {
     void settingsStore
       .initialize()
@@ -1210,6 +1547,7 @@ onMounted(async () => {
       .then(() => refreshDocCounts())
       .catch(() => undefined);
     void store.refreshBound().catch(() => undefined);
+    if (showWorkspace.value) void refreshWorkspace();
   });
 });
 
@@ -1336,6 +1674,66 @@ h3 {
   border-radius: 3px;
   color: var(--b3-theme-error, #e35);
   background: color-mix(in srgb, var(--b3-theme-error, #e35) 16%, transparent);
+}
+
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ws-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.ws-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--b3-theme-on-surface-light, #888);
+}
+
+.ws-group-count {
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--b3-theme-surface-lighter, rgba(255, 255, 255, 0.06));
+  font-size: 10px;
+}
+
+.ws-name-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ws-name-wrap .path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-origin {
+  color: var(--b3-theme-on-surface-light, #888);
+  background: var(--b3-theme-surface-lighter, rgba(255, 255, 255, 0.06));
+}
+
+.ws-adopt-hint {
+  font-size: 11px;
+  text-align: right;
+}
+
+.ws-orphan-check {
+  flex-shrink: 0;
+}
+
+.ws-group-head .ws-orphan-delete {
+  margin-left: auto;
 }
 
 .doc-count {
