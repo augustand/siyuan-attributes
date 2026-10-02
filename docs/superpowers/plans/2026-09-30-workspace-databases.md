@@ -85,3 +85,16 @@ export async function listWorkspaceDatabases(input: { owned: OwnedDatabase[] }):
 | Dock 开关 + 设置 section + 采纳 | 2(刀4:工作区改为默认视图) |
 | 孤儿只标记 | 2(刀3 改为可勾选批量删除;刀4 数据库级直删) |
 | 打开宿主 + 孤儿批量删除 | 3(刀4:改走 removeFile,内核 unused 校验绕过) |
+
+---
+
+## 刀5:日常使用加速(换表直达 / 命令 / 表内建文档 / 批量加入)
+
+**Files:** `src/views/DocDatabaseDock.vue`、`src/index.ts`、`src/services/doctreeClassify.ts`、两 i18n 包、相关测试
+
+- [ ] 换表格:已挂卡片加「换表格」→ 打开既有选库对话框(switch 模式:boundAvIds 视为空,点其它表即互斥迁移)
+- [ ] 命令:addCommand 注册 加入任务清单/项目追踪/素材收集箱(callback = joinTableByKey(activeDocId));快捷键留空由用户在思源设置里绑
+- [ ] 表内新建文档:「文档」对话框顶部加 标题输入 + 新建按钮 → createDocWithMd(表的笔记本) → 绑定 → 刷新列表与计数;服务 `createDocIntoTable` 放 doctreeClassify.ts(解析笔记本 via SQL blocks.box,失败报错)
+- [ ] 批量加入:doctree 菜单对全部选中文档生效,汇总 toast「已加入 N 篇」
+- [ ] i18n:switchTable/newDocInTable/newDocTitlePh/newDocOk/batchJoinOk/cmd* 两包同步;check-i18n 退出 0
+- [ ] 验证:typecheck + test + check-i18n + build 全绿
