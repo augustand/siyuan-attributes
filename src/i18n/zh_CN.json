@@ -242,7 +242,19 @@
     "orphanDeleteConfirmTitle": "删除选中数据库",
     "orphanDeleteConfirmBody": "将永久删除选中数据库的数据；被文档引用的会一并移除其嵌入块。不可恢复。",
     "orphanDeleteOk": "已删除 {n} 个",
-    "orphanDeletePartial": "{n} 个删除失败"
+    "orphanDeletePartial": "{n} 个删除失败",
+    "switchTable": "换表格",
+    "newDocInTable": "新建文档",
+    "newDocTitlePh": "新文档标题…",
+    "newDocOk": "已创建并加入「{name}」",
+    "batchJoinOk": "已加入 {n} 篇",
+    "cmdJoinPrefix": "加入「{name}」",
+    "capture": "记一条到收集箱",
+    "captureTitlePh": "想记点什么…",
+    "captureContentPh": "补充内容（可选，支持 Markdown）",
+    "captureHint": "将创建一篇文档并放入素材收集箱，稍后可在表格里整理。",
+    "captureOk": "已入收集箱",
+    "captureNeedTitle": "先写个标题"
   },
   "blockDialog": {
     "menuLabel": "属性面板",

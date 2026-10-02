@@ -242,7 +242,19 @@
     "orphanDeleteConfirmTitle": "Delete selected databases",
     "orphanDeleteConfirmBody": "This permanently deletes the selected databases' data; embedded blocks in documents are removed too. This cannot be undone.",
     "orphanDeleteOk": "{n} deleted",
-    "orphanDeletePartial": "{n} failed"
+    "orphanDeletePartial": "{n} failed",
+    "switchTable": "Switch table",
+    "newDocInTable": "New document",
+    "newDocTitlePh": "New document title…",
+    "newDocOk": "Created and joined \"{name}\"",
+    "batchJoinOk": "Joined {n} documents",
+    "cmdJoinPrefix": "Join \"{name}\"",
+    "capture": "Quick capture",
+    "captureTitlePh": "What's on your mind…",
+    "captureContentPh": "Details (optional, Markdown supported)",
+    "captureHint": "Creates a document in the Inbox table; triage it later.",
+    "captureOk": "Captured to inbox",
+    "captureNeedTitle": "Add a title first"
   },
   "blockDialog": {
     "menuLabel": "Attribute panel",

@@ -38,6 +38,9 @@
           <div class="status-title">{{ dbDisplayName(primaryBound) }}</div>
           <p class="guide">{{ labels.boundHint }}</p>
           <div class="status-actions">
+            <t-button size="small" variant="outline" @click="openAddPicker()">
+              {{ labels.switchTable }}
+            </t-button>
             <t-button size="small" variant="outline" theme="danger" @click="onUnbind(primaryBound.avID)">
               {{ labels.unbind }}
             </t-button>
@@ -158,7 +161,7 @@
             >
               {{ labels.open }}
             </t-button>
-            <t-button size="small" variant="text" @click="onBackfillColumns(db)">
+            <t-button v-if="db.templateKey" size="small" variant="text" @click="onBackfillColumns(db)">
               {{ labels.backfill }}
             </t-button>
             <t-button size="small" variant="text" theme="danger" @click="removeOwned(db.avID)">
@@ -248,7 +251,7 @@
                   >
                     {{ labels.open }}
                   </t-button>
-                  <t-button size="small" variant="text" @click="onBackfillColumns(row.db)">
+                  <t-button v-if="row.db.templateKey" size="small" variant="text" @click="onBackfillColumns(row.db)">
                     {{ labels.backfill }}
                   </t-button>
                   <t-button
@@ -329,6 +332,25 @@
     >
       <p v-if="docsLoading" class="muted">{{ labels.loading }}</p>
       <template v-else-if="docsRows.length">
+        <div v-if="docsDb && docsDb.homeDocId" class="new-doc-row">
+          <t-input
+            v-model="newDocTitle"
+            class="new-doc-input"
+            size="small"
+            clearable
+            :placeholder="labels.newDocTitlePh"
+            @enter="onNewDocInTable"
+          />
+          <t-button
+            size="small"
+            variant="outline"
+            :disabled="!newDocTitle.trim() || newDocCreating"
+            :loading="newDocCreating"
+            @click="onNewDocInTable"
+          >
+            {{ labels.newDocInTable }}
+          </t-button>
+        </div>
         <div v-if="docsColumns.length" class="docs-filter">
           <t-select
             v-model="docsFilterKey"
@@ -467,7 +489,7 @@ import {
   deleteOwnedDatabaseHome,
   findForeignDatabaseBlocksInDoc,
 } from "@/services/ownedDatabaseMigrate";
-import { joinTableByKey } from "@/services/doctreeClassify";
+import { createDocIntoTable, joinTableByKey } from "@/services/doctreeClassify";
 import { refreshDocumentEditor } from "@/services/refreshEditor";
 import {
   checkOwnedDatabasesHealth,
@@ -496,7 +518,7 @@ import {
   displayOwnedDatabaseName,
   filterOwnedDatabases,
 } from "@/models/ownedDatabaseHang";
-import {
+import { backfillOwnedHomeDocs,
   listWorkspaceDatabases,
   removeDatabaseCompletely,
   type WorkspaceDatabaseEntry,
@@ -521,6 +543,9 @@ const showDocs = ref(false);
 const docsLoading = ref(false);
 const docsList = ref<DatabaseBoundDoc[]>([]);
 const docsAvName = ref("");
+const docsDb = ref<OwnedDatabase | null>(null);
+const newDocTitle = ref("");
+const newDocCreating = ref(false);
 const docsColumns = ref<DatabaseQueryColumn[]>([]);
 const docsRows = ref<DatabaseQueryRow[]>([]);
 const docsFilterKey = ref("");
@@ -706,6 +731,10 @@ const labels = computed(() => ({
   ),
   orphanDeleteOk: getI18nText("ownedDb.orphanDeleteOk", "已删除 {n} 个"),
   orphanDeletePartial: getI18nText("ownedDb.orphanDeletePartial", "{n} 个删除失败"),
+  switchTable: getI18nText("ownedDb.switchTable", "换表格"),
+  newDocInTable: getI18nText("ownedDb.newDocInTable", "新建文档"),
+  newDocTitlePh: getI18nText("ownedDb.newDocTitlePh", "新文档标题…"),
+  newDocOk: getI18nText("ownedDb.newDocOk", "已创建并加入「{name}」"),
 }));
 
 const notebookHint = computed(() => {
@@ -1005,6 +1034,14 @@ async function refreshDocCounts() {
     docCounts.value = {};
     return;
   }
+  // Self-heal adopted entries that predate host resolution: once backfilled
+  // the 打开 button appears. persistOwned triggers settings-changed → this
+  // runs again, finds nothing, and the loop stops.
+  void backfillOwnedHomeDocs(dbs)
+    .then(async (updated) => {
+      if (updated) await persistOwned(updated);
+    })
+    .catch((e) => console.warn("backfillOwnedHomeDocs failed", e));
   const seq = ++docCountsSeq;
   const entries = await Promise.all(
     dbs.map(async (db) => {
@@ -1053,6 +1090,24 @@ async function onGenerateDefault() {
     MessagePlugin.error(e instanceof Error ? e.message : String(e));
   } finally {
     generating.value = false;
+  }
+}
+
+async function onNewDocInTable() {
+  const db = docsDb.value;
+  const title = newDocTitle.value.trim();
+  if (!db || !title || newDocCreating.value) return;
+  newDocCreating.value = true;
+  try {
+    await createDocIntoTable({ plugin, db, title });
+    newDocTitle.value = "";
+    MessagePlugin.success(labels.value.newDocOk.replace("{name}", dbDisplayName(db)));
+    await openDocs(db);
+    refreshDocCounts();
+  } catch (e) {
+    MessagePlugin.error(e instanceof Error ? e.message : String(e));
+  } finally {
+    newDocCreating.value = false;
   }
 }
 
@@ -1201,6 +1256,8 @@ function openAddPicker(filter?: OwnedDatabase[]) {
 
 async function openDocs(db: OwnedDatabase) {
   docsAvName.value = db.name;
+  docsDb.value = db;
+  newDocTitle.value = "";
   resetDocsState();
   showDocs.value = true;
   docsLoading.value = true;
@@ -1277,6 +1334,7 @@ async function adoptEntry(entry: WorkspaceDatabaseEntry) {
     blockID: entry.blockID,
     hPath: entry.hostPath ?? "",
   });
+  if (entry.hostDocID) db.homeDocId = entry.hostDocID;
   if (ownedDatabases.value.some((x) => x.avID === db.avID)) {
     MessagePlugin.info(getI18nText("ownedDb.exists", "该库已在名单中"));
     return;
@@ -1821,6 +1879,14 @@ h3 {
   border-color: var(--b3-theme-primary, #357);
 }
 
+.new-doc-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.new-doc-input {
+  flex: 1;
+}
 .docs-filter {
   display: flex;
   align-items: center;

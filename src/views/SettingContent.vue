@@ -48,7 +48,7 @@
         >
           {{ labels.open }}
         </t-button>
-        <t-button size="small" variant="outline" @click="onBackfillColumns(db)">
+        <t-button v-if="db.templateKey" size="small" variant="outline" @click="onBackfillColumns(db)">
           {{ labels.backfill }}
         </t-button>
         <t-button size="small" variant="outline" theme="danger" @click="remove(db.avID)">
@@ -541,6 +541,7 @@ async function adoptEntry(entry: WorkspaceDatabaseEntry) {
     blockID: entry.blockID,
     hPath: entry.hostPath ?? "",
   });
+  if (entry.hostDocID) db.homeDocId = entry.hostDocID;
   if (draft.ownedDatabases.some((x) => x.avID === db.avID)) {
     MessagePlugin.info(getI18nText("ownedDb.exists", "该库已在名单中"));
     return;
