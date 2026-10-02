@@ -1,4 +1,5 @@
-import type { Plugin } from "siyuan";
+import { fetchSyncPost, type Plugin } from "siyuan";
+import { assertSiyuanData } from "./siyuanResponse";
 import type { OwnedDatabase } from "@/models/ownedDatabase";
 import type { DatabaseTypeId, TableTemplate } from "@/models/databaseTypes";
 import { normalizeDatabaseTypeId } from "@/models/databaseTypes";
@@ -201,4 +202,64 @@ export async function joinTableByKey(input: {
   await refreshDocumentEditor(input.docId, input.plugin);
 
   return { kind: ensured.created ? "created" : "bound", db, addedColumns };
+}
+
+
+/**
+ * Create a fresh document titled `title` and file it into `db` (row = doc).
+ * Notebook is resolved from the table's home doc (blocks.box). Exclusive
+ * migrate + column backfill + editor refresh, mirroring joinTableByKey.
+ */
+export async function createDocIntoTable(input: {
+  plugin?: Plugin;
+  db: Pick<OwnedDatabase, "avID" | "avBlockID" | "homeDocId">;
+  title: string;
+  /** Optional markdown body written into the new document. */
+  markdown?: string;
+  ownedAvIDs?: readonly string[];
+}): Promise<{ docId: string }> {
+  const title = input.title.trim();
+  if (!title) {
+    throw new Error("请输入新文档标题");
+  }
+  if (!input.db.homeDocId) {
+    throw new Error("无法确定该表格的存放笔记本（表格缺少宿主文档）");
+  }
+  const query = assertSiyuanData<Array<{ box?: string }>>(
+    await fetchSyncPost("/api/query/sql", {
+      stmt: `SELECT box, root_id FROM blocks WHERE id = '${input.db.homeDocId}'`,
+    }),
+    "Failed to resolve table notebook",
+  );
+  const notebook = query?.[0]?.box;
+  if (!notebook) {
+    throw new Error("无法确定该表格的存放笔记本，请先在表格列表里「打开」一次该表格");
+  }
+  const created = assertSiyuanData<string>(
+    await fetchSyncPost("/api/filetree/createDocWithMd", {
+      notebook,
+      path: `/${title}`,
+      markdown: input.markdown ?? "",
+    }),
+    "Failed to create document",
+  );
+  if (!created) {
+    throw new Error("创建文档失败，请重试");
+  }
+  await migrateDocumentToOwnedDatabase({
+    docId: created,
+    target: input.db as OwnedDatabase,
+    ownedAvIDs: input.ownedAvIDs,
+  });
+  try {
+    await ensureOwnedDatabaseTemplateColumns(input.db as OwnedDatabase);
+  } catch (e) {
+    console.warn("createDocIntoTable: ensure columns failed", e);
+  }
+  try {
+    await refreshDocumentEditor(created, input.plugin);
+  } catch (e) {
+    console.warn("createDocIntoTable: refresh failed", e);
+  }
+  return { docId: created };
 }

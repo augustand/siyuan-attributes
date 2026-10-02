@@ -15,6 +15,91 @@ beforeEach(() => {
   fetchSyncPostMock.mockReset();
 });
 
+
+describe("unbindDocumentFromDatabase on kernel 3.8.6 (row id != doc id)", () => {
+  function installKeys(handlers: Record<string, unknown>): void {
+    fetchSyncPostMock.mockImplementation(async (url: string, body?: unknown) => {
+      if (url === "/api/av/getAttributeViewKeys") {
+        const id = (body as { id: string }).id;
+        return { code: 0, msg: "", data: (handlers[id] ?? []) as unknown };
+      }
+      if (url === "/api/av/removeAttributeViewBlocks") {
+        const args = body as { avID: string; srcIDs: string[] };
+        calls.push(args);
+        return { code: 0, msg: "", data: null };
+      }
+      return { code: 0, msg: "", data: null };
+    });
+  }
+  let calls: Array<{ avID: string; srcIDs: string[] }>;
+  const keysWhileBound = [
+    {
+      avID: "av-1",
+      keyValues: [{ values: [{ blockID: "row-99" }] }],
+    },
+  ];
+
+  beforeEach(() => {
+    fetchSyncPostMock.mockReset();
+    calls = [];
+  });
+
+  it("removes by the resolved ROW id, not the doc id", async () => {
+    installKeys({ "doc-1": keysWhileBound, "doc-1-after": [] });
+    // 第一次读(解析行 id)返回绑定态;解绑后的复核读取返回空。
+    let read = 0;
+    fetchSyncPostMock.mockImplementation(async (url: string, body?: unknown) => {
+      if (url === "/api/av/getAttributeViewKeys") {
+        read += 1;
+        return { code: 0, msg: "", data: read === 1 ? keysWhileBound : [] };
+      }
+      if (url === "/api/av/removeAttributeViewBlocks") {
+        const args = body as { avID: string; srcIDs: string[] };
+        calls.push(args);
+        return { code: 0, msg: "", data: null };
+      }
+      return { code: 0, msg: "", data: null };
+    });
+
+    await expect(unbindDocumentFromDatabase({ avID: "av-1", docId: "doc-1" })).resolves.toBeUndefined();
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toEqual({ avID: "av-1", srcIDs: ["row-99"] });
+  });
+
+  it("falls back to the doc id when row resolution finds nothing", async () => {
+    fetchSyncPostMock.mockImplementation(async (url: string, body?: unknown) => {
+      if (url === "/api/av/getAttributeViewKeys") {
+        return { code: 0, msg: "", data: [] };
+      }
+      if (url === "/api/av/removeAttributeViewBlocks") {
+        const args = body as { avID: string; srcIDs: string[] };
+        calls.push(args);
+        return { code: 0, msg: "", data: null };
+      }
+      return { code: 0, msg: "", data: null };
+    });
+
+    await expect(unbindDocumentFromDatabase({ avID: "av-1", docId: "doc-1" })).resolves.toBeUndefined();
+    expect(calls[0]).toEqual({ avID: "av-1", srcIDs: ["doc-1"] });
+  });
+
+  it("throws a guided error when the kernel reports the binding still present", async () => {
+    fetchSyncPostMock.mockImplementation(async (url: string) => {
+      if (url === "/api/av/getAttributeViewKeys") {
+        return { code: 0, msg: "", data: keysWhileBound };
+      }
+      if (url === "/api/av/removeAttributeViewBlocks") {
+        return { code: 0, msg: "", data: null };
+      }
+      return { code: 0, msg: "", data: null };
+    });
+
+    await expect(unbindDocumentFromDatabase({ avID: "av-1", docId: "doc-1" })).rejects.toThrow(
+      "解绑未生效",
+    );
+  });
+});
+
 describe("bindDocumentToDatabase", () => {
   it("posts addAttributeViewBlocks for a bound doc", async () => {
     fetchSyncPostMock.mockImplementation(async (url: string) => {

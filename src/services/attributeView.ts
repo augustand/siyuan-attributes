@@ -70,17 +70,73 @@ export async function bindDocumentToDatabase(input: {
   }
 }
 
+/**
+ * Kernel 3.8.6+ gives doc-bound rows their OWN item ids (no longer equal to
+ * the doc id), so resolve the row id from the doc's AV panels first and
+ * remove by row id. Falls back to the doc id on older kernels or any
+ * resolution trouble; post-verifies the binding actually disappeared.
+ */
 export async function unbindDocumentFromDatabase(input: {
   avID: string;
   docId: string;
 }): Promise<void> {
+  const rowIDs = await resolveRowIDs(input.avID, input.docId);
   assertSiyuanSuccess(
     await fetchSyncPost("/api/av/removeAttributeViewBlocks", {
       avID: input.avID,
-      srcIDs: [input.docId],
+      srcIDs: rowIDs.length ? rowIDs : [input.docId],
     }),
     "Failed to unbind document from database",
   );
+  await assertUnbound(input.avID, input.docId);
+}
+
+/** Row ids of `avID` inside `docId`'s bound panels (values[].blockID). */
+async function resolveRowIDs(avID: string, docId: string): Promise<string[]> {
+  try {
+    const data = assertSiyuanData<unknown>(
+      await fetchSyncPost("/api/av/getAttributeViewKeys", { id: docId }),
+      "Failed to load database attributes",
+    );
+    const panels = Array.isArray(data) ? data : [];
+    const rowIDs = new Set<string>();
+    for (const panel of panels) {
+      const table = panel as { avID?: unknown; keyValues?: unknown };
+      if (table.avID !== avID || !Array.isArray(table.keyValues)) continue;
+      for (const keyValue of table.keyValues as Array<Record<string, unknown>>) {
+        const values = Array.isArray(keyValue.values) ? keyValue.values : [];
+        for (const value of values) {
+          const blockID = (value as { blockID?: unknown }).blockID;
+          if (typeof blockID === "string" && blockID) rowIDs.add(blockID);
+        }
+      }
+    }
+    return [...rowIDs];
+  } catch (e) {
+    console.warn("resolveRowIDs failed (falling back to docId)", e);
+    return [];
+  }
+}
+
+async function assertUnbound(avID: string, docId: string): Promise<void> {
+  try {
+    const data = assertSiyuanData<unknown>(
+      await fetchSyncPost("/api/av/getAttributeViewKeys", { id: docId }),
+      "Failed to load database attributes",
+    );
+    const panels = Array.isArray(data) ? data : [];
+    const stillBound = panels.some(
+      (panel) => (panel as { avID?: unknown }).avID === avID,
+    );
+    if (stillBound) {
+      throw new Error(
+        "解绑未生效（思源 3.8.6 解绑接口行为变化）。请刷新文档后重试；若仍失败请重启思源。",
+      );
+    }
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("解绑未生效")) throw e;
+    console.warn("assertUnbound check failed (treating as unbound)", e);
+  }
 }
 
 export interface DatabaseBoundDoc {

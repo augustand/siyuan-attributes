@@ -67,6 +67,41 @@ function sqlLiteral(value: string): string {
  * (endpoint error, throw) degrades to an empty map so the listing never
  * breaks; entries then just have no hostDocID.
  */
+/**
+ * Resolve blockID → host doc id for arbitrary block ids (public helper for
+ * adoption flows and catalog backfill). Tolerant: failures yield a partial
+ * or empty record.
+ */
+export async function resolveHostDocIDs(
+  blockIDs: readonly string[],
+): Promise<Record<string, string>> {
+  const map = await fetchHostDocIDs([...blockIDs]);
+  return Object.fromEntries(map);
+}
+
+/**
+ * Fill in homeDocId for catalog entries adopted before host resolution
+ * existed (kernel search hits carry blockID only). Returns a NEW array when
+ * anything changed, null when every entry already has a home doc.
+ */
+export async function backfillOwnedHomeDocs(
+  dbs: OwnedDatabase[],
+): Promise<OwnedDatabase[] | null> {
+  const pending = dbs.filter((db) => !db.homeDocId && db.avBlockID);
+  if (!pending.length) return null;
+  const resolved = await fetchHostDocIDs(pending.map((db) => db.avBlockID));
+  if (!resolved.size) return null;
+  let changed = false;
+  const next = dbs.map((db) => {
+    if (db.homeDocId || !db.avBlockID) return db;
+    const hostDocID = resolved.get(db.avBlockID);
+    if (!hostDocID) return db;
+    changed = true;
+    return { ...db, homeDocId: hostDocID } as OwnedDatabase;
+  });
+  return changed ? next : null;
+}
+
 async function fetchHostDocIDs(blockIDs: string[]): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   for (let i = 0; i < blockIDs.length; i += SQL_CHUNK) {

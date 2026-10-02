@@ -8,6 +8,8 @@ export type ClassifyNeedCreateDetail = {
 
 /** Window event: doctree「更多表格…」picked; host opens the table picker dialog. */
 export const CLASSIFY_PICK_TABLE_EVENT = "mux-doctree-classify:pick-table";
+export const CAPTURE_EVENT = "mux-doc-tables:capture";
+export interface CaptureDetail { notebookId?: string }
 
 export type ClassifyPickTableDetail = {
   docId: string;

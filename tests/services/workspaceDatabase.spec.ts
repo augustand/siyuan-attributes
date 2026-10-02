@@ -540,3 +540,40 @@ describe("removeDatabaseCompletely (raw fetch — app fetchSyncPost toasts error
     await expect(removeDatabaseCompletely({ avID: "av-x" })).rejects.toThrow("network boom");
   });
 });
+
+describe("backfillOwnedHomeDocs", () => {
+  function installSql(rows: Array<{ id: string; root_id: string }>): void {
+    fetchSyncPostMock.mockImplementation(async (url: string) => {
+      if (url === "/api/query/sql") return { code: 0, msg: "", data: rows };
+      return { code: 0, msg: "", data: null };
+    });
+  }
+  const base = { name: "X", avID: "av-1", avBlockID: "blk-1", createdAt: 1 };
+
+  beforeEach(() => {
+    fetchSyncPostMock.mockReset();
+  });
+
+  it("fills homeDocId from the block index and returns a new array", async () => {
+    installSql([{ id: "blk-1", root_id: "doc-9" }]);
+    const { backfillOwnedHomeDocs } = await import("@/services/workspaceDatabase");
+    const result = await backfillOwnedHomeDocs([
+      { ...base } as never,
+      { ...base, avID: "av-2", avBlockID: "blk-2", homeDocId: "doc-1" } as never,
+    ]);
+    expect(result).not.toBeNull();
+    expect(result![0]).toMatchObject({ avID: "av-1", homeDocId: "doc-9" });
+    expect(result![1]!.homeDocId).toBe("doc-1");
+  });
+
+  it("returns null when nothing is missing or nothing resolves", async () => {
+    installSql([]);
+    const { backfillOwnedHomeDocs } = await import("@/services/workspaceDatabase");
+    await expect(backfillOwnedHomeDocs([{ ...base } as never])).resolves.toBeNull();
+
+    installSql([{ id: "blk-1", root_id: "doc-9" }]);
+    await expect(
+      backfillOwnedHomeDocs([{ ...base, homeDocId: "already" } as never]),
+    ).resolves.toBeNull();
+  });
+});

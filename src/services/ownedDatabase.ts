@@ -360,14 +360,17 @@ function readExistingKeyNames(av: Record<string, unknown>): string[] {
 export async function ensureOwnedDatabaseTemplateColumns(
   db: OwnedDatabase,
 ): Promise<{ added: string[] }> {
+  // Only the three GENERATED default tables own template columns. Adopted
+  // or user-native databases must never receive filler columns — adding
+  // 状态/优先级 to someone's contacts tracker is pollution, not backfill.
   const template = db.templateKey ? getTableTemplate(db.templateKey) : undefined;
-  const columns = template?.columns ?? getDatabaseType(db.typeId).columns;
+  if (!template) return { added: [] };
   const response = await fetchSyncPost("/api/av/getAttributeView", { id: db.avID });
   const av = (response?.data as { av?: Record<string, unknown> } | undefined)?.av;
   if (response?.code !== 0 || !av) {
     throw new SiyuanApiError(response?.msg || "Failed to read database for columns");
   }
-  const missing = missingTemplateColumns(readExistingKeyNames(av), columns);
+  const missing = missingTemplateColumns(readExistingKeyNames(av), template.columns);
   if (!missing.length) return { added: [] };
   await addTemplateColumns(db.avID, db.avBlockID, missing);
   return { added: missing.map((c) => c.name) };

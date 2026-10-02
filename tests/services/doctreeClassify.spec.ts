@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fetchSyncPost } from "siyuan";
 import { pickPrimaryDatabaseForType } from "@/models/ownedDatabaseHang";
 import type { OwnedDatabase } from "@/models/ownedDatabase";
 
@@ -33,7 +34,7 @@ import {
 import { migrateDocumentToOwnedDatabase } from "@/services/ownedDatabaseMigrate";
 import { refreshDocumentEditor } from "@/services/refreshEditor";
 import { loadPanelSettings, savePanelSettings } from "@/services/settings";
-import { classifyDocumentToType, joinTableByKey } from "@/services/doctreeClassify";
+import { classifyDocumentToType, createDocIntoTable, joinTableByKey } from "@/services/doctreeClassify";
 import {
   CLASSIFY_NEED_CREATE_EVENT,
   CLASSIFY_PICK_TABLE_EVENT,
@@ -257,5 +258,55 @@ describe("joinTableByKey", () => {
   it("exposes the pick-table window event name for the doctree host", () => {
     expect(CLASSIFY_PICK_TABLE_EVENT).toBe("mux-doctree-classify:pick-table");
     expect(CLASSIFY_NEED_CREATE_EVENT).toBe("mux-doctree-classify:need-create");
+  });
+});
+
+describe("createDocIntoTable", () => {
+  const db = { avID: "av-1", avBlockID: "blk-1", homeDocId: "home-1" };
+
+  const fetchSyncPostAsMock = vi.mocked(fetchSyncPost);
+  const migrateSpy = migrateMock;
+
+  function sqlRows(rows: Array<Record<string, unknown>>): void {
+    fetchSyncPostAsMock.mockImplementation(async (url: string) => {
+      if (url === "/api/query/sql") return { code: 0, msg: "", data: rows };
+      if (url === "/api/filetree/createDocWithMd") return { code: 0, msg: "", data: "new-doc-1" };
+      if (url === "/api/av/removeAttributeViewBlocks") return { code: 0, msg: "", data: null };
+      if (url === "/api/av/getAttributeViewKeys") return { code: 0, msg: "", data: [] };
+      return { code: 0, msg: "", data: null };
+    });
+  }
+
+  beforeEach(() => {
+    fetchSyncPostAsMock.mockReset();
+  });
+
+  it("resolves the notebook from the home doc, creates the doc, and migrates", async () => {
+    sqlRows([{ box: "nb-1", root_id: "home-1" }]);
+    const { docId } = await createDocIntoTable({ db, title: "  新任务  " });
+
+    expect(docId).toBe("new-doc-1");
+    const createCall = fetchSyncPostAsMock.mock.calls.find(
+      ([url]) => url === "/api/filetree/createDocWithMd",
+    );
+    expect(createCall?.[1]).toEqual({ notebook: "nb-1", path: "/新任务", markdown: "" });
+    expect(migrateSpy).toHaveBeenCalled();
+
+    const withBody = await createDocIntoTable({ db, title: "带正文", markdown: "# 要点\n- a" });
+    expect(withBody.docId).toBe("new-doc-1");
+    const createCall2 = fetchSyncPostAsMock.mock.calls.find(
+      ([url, body]) => url === "/api/filetree/createDocWithMd" && (body as {path:string}).path === "/带正文",
+    );
+    expect((createCall2?.[1] as { markdown: string }).markdown).toBe("# 要点\n- a");
+  });
+
+  it("throws on blank title and on unresolvable notebook", async () => {
+    sqlRows([{ box: "nb-1" }]);
+    await expect(createDocIntoTable({ db, title: "   " })).rejects.toThrow("标题");
+    await expect(createDocIntoTable({ db: { ...db, homeDocId: undefined }, title: "x" })).rejects.toThrow(
+      "存放笔记本",
+    );
+    sqlRows([]);
+    await expect(createDocIntoTable({ db, title: "x" })).rejects.toThrow("存放笔记本");
   });
 });
